@@ -1,0 +1,8 @@
+{
+  "name": "OpsCenter: Service Command",
+  "description": "A multi-tenant operational command center for service-based businesses, featuring scheduling, internal knowledge base, and communication templates.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
