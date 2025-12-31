@@ -59,7 +59,7 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
                 />
 
                 {/* Content Layer */}
-                <div className="relative z-10 p-8 pb-32 sm:pb-8 flex flex-col min-h-[500px]">
+                <div className={`relative z-10 p-8 flex flex-col min-h-[500px] transition-all duration-300 ${keyboardOffset > 0 ? 'pb-8' : 'pb-32 sm:pb-8'}`}>
                     <div className="flex justify-between items-start mb-8">
                         <div>
                             <div className="flex items-center space-x-2 mb-1">
