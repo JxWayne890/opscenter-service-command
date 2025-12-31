@@ -14,17 +14,11 @@ import TimeClockView from './components/views/TimeClockView';
 import SettingsView from './components/views/SettingsView';
 import { OpsCenterProvider, useOpsCenter } from './services/store';
 
-import DevicePreview from './components/dev/DevicePreview';
-
-// Inner component to consume the context
 const DashboardContent: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('pulse');
   const { currentUser } = useOpsCenter();
 
-  // Special check: If we are in the preview frame, don't re-render the DevicePreview wrapper
-  const isPreviewFrame = window.location.search.includes('view=preview');
-
-  const Content = (
+  return (
     <div className="min-h-screen flex p-4 lg:p-6 gap-6 bg-slate-50">
       <InviteStaffModal />
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
@@ -42,15 +36,6 @@ const DashboardContent: React.FC = () => {
       </div>
       <MobileNav activeView={activeView} setActiveView={setActiveView} />
     </div>
-  );
-  if (isPreviewFrame) {
-    return Content;
-  }
-
-  return (
-    <DevicePreview>
-      {Content}
-    </DevicePreview>
   );
 };
 
