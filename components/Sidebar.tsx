@@ -83,9 +83,9 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
             )}
 
             {/* Floating Dock */}
-            <nav className="lg:hidden fixed bottom-6 inset-x-4 glass-dark rounded-2xl h-18 flex items-center justify-between px-6 z-[100] shadow-2xl border border-white/10">
+            <nav className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-lg glass-dark rounded-3xl h-20 flex items-center justify-around px-4 z-[100] shadow-2xl border border-white/10">
                 {/* Left Group */}
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                     {MainTabs.map(tab => (
                         <SidebarIcon
                             key={tab.id}
@@ -97,17 +97,17 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
                 </div>
 
                 {/* Center OpsPilot FAB (Integrated) */}
-                <div className="flex items-center justify-center">
+                <div className="flex items-center justify-center -mt-2">
                     <button
                         onClick={() => setIsPilotOpen(true)}
-                        className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-500/30 active:scale-95 transition-all"
+                        className="w-14 h-14 bg-gradient-to-br from-indigo-500 via-purple-600 to-pink-500 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-indigo-500/40 active:scale-90 transition-all border border-white/20"
                     >
-                        <Sparkles size={20} fill="white" className="animate-pulse" />
+                        <Sparkles size={24} fill="white" className="animate-pulse" />
                     </button>
                 </div>
 
                 {/* Right Group */}
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                     <SidebarIcon
                         icon={Clock}
                         active={activeView === 'timeclock'}
