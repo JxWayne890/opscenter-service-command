@@ -7,13 +7,46 @@ interface OpsPilotModalProps {
 }
 
 const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
+    const [viewportHeight, setViewportHeight] = React.useState(window.visualViewport?.height || window.innerHeight);
+    const [keyboardOffset, setKeyboardOffset] = React.useState(0);
+
+    React.useEffect(() => {
+        if (!isOpen || !window.visualViewport) return;
+
+        const handleResize = () => {
+            const viewport = window.visualViewport;
+            if (!viewport) return;
+
+            setViewportHeight(viewport.height);
+            // Calculate how much the keyboard is "pushing up" from the bottom
+            const offset = window.innerHeight - viewport.height;
+            setKeyboardOffset(offset > 0 ? offset : 0);
+        };
+
+        window.visualViewport.addEventListener('resize', handleResize);
+        window.visualViewport.addEventListener('scroll', handleResize);
+        handleResize();
+
+        return () => {
+            window.visualViewport?.removeEventListener('resize', handleResize);
+            window.visualViewport?.removeEventListener('scroll', handleResize);
+        };
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4">
+        <div
+            className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4 transition-[bottom] duration-300"
+            style={{
+                bottom: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px',
+                height: keyboardOffset > 0 ? `${viewportHeight}px` : '100%'
+            }}
+        >
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+                className="absolute inset-x-0 top-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+                style={{ height: '200vh', top: '-100vh' }} // Ensure coverage even when pushed up
                 onClick={onClose}
             ></div>
 
