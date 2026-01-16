@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { X, Clock, User, Briefcase, Calendar, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { Shift, Profile, ShiftSwap } from '../../types';
+import AnalogTimePicker from '../ui/AnalogTimePicker';
+import CustomSelect from '../ui/CustomSelect';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface ShiftModalProps {
     isOpen: boolean;
@@ -19,6 +22,8 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
     const [endTime, setEndTime] = useState('');
     const [isOpenShift, setIsOpenShift] = useState(false);
     const [notes, setNotes] = useState('');
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showSwapConfirm, setShowSwapConfirm] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -38,6 +43,8 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                 setEndTime('17:00');
                 setNotes('');
             }
+            setShowDeleteConfirm(false);
+            setShowSwapConfirm(false);
         }
     }, [isOpen, editShift, defaultUserId]);
 
@@ -97,27 +104,24 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
         };
 
         await offerShift(swap);
-        alert('Shift offered for swap!');
         onClose();
     };
 
     const handleDelete = async () => {
         if (!editShift) return;
-        if (confirm('Are you sure you want to delete this shift?')) {
-            // Need to expose deleteShift in store if not already? 
-            // Checking store... likely need to add deleteShift to context or use generic update
-            // Actually I think I saw deleteShift in the original store, but check the new one.
-            // I'll assume it exists or I'll fix store.
-            // Oh wait, I didn't add deleteShift to the NEW store logic explicitly in the last write.
-            // I'll just skip delete for now or use strict valid actions.
-            // Phase 1 Requirements did not explicitly demand Delete, but helpful.
-            // Let's stick to Swap.
-        }
+        await deleteShift(editShift.id);
+        onClose();
     };
 
     if (!isOpen) return null;
 
     const isMyShift = editShift && editShift.user_id === currentUser.id;
+
+    // Build staff options for CustomSelect
+    const staffOptions = staff.map(u => ({
+        value: u.id,
+        label: u.full_name
+    }));
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
@@ -151,22 +155,14 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                     </div>
 
                     {!isOpenShift && (
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Staff Member</label>
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                                <select
-                                    value={userId}
-                                    onChange={(e) => setUserId(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none appearance-none"
-                                >
-                                    <option value="" disabled>Select Employee</option>
-                                    {staff.map(u => (
-                                        <option key={u.id} value={u.id}>{u.full_name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </div>
+                        <CustomSelect
+                            label="Staff Member"
+                            options={staffOptions}
+                            value={userId}
+                            onChange={setUserId}
+                            placeholder="Select Employee"
+                            icon={<User size={16} />}
+                        />
                     )}
 
                     <div>
@@ -184,24 +180,16 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Start Time</label>
-                            <input
-                                type="time"
-                                value={startTime}
-                                onChange={(e) => setStartTime(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-500 uppercase mb-2">End Time</label>
-                            <input
-                                type="time"
-                                value={endTime}
-                                onChange={(e) => setEndTime(e.target.value)}
-                                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none"
-                            />
-                        </div>
+                        <AnalogTimePicker
+                            label="Start Time"
+                            value={startTime}
+                            onChange={(time) => setStartTime(time)}
+                        />
+                        <AnalogTimePicker
+                            label="End Time"
+                            value={endTime}
+                            onChange={(time) => setEndTime(time)}
+                        />
                     </div>
 
                     <div>
@@ -215,10 +203,19 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                     </div>
 
                     <div className="pt-2 flex space-x-3">
+                        {editShift && (
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteConfirm(true)}
+                                className="p-3.5 bg-rose-50 text-rose-600 border border-rose-200 rounded-xl font-bold hover:bg-rose-100 transition-colors"
+                            >
+                                <Trash2 size={18} />
+                            </button>
+                        )}
                         {isMyShift && (
                             <button
                                 type="button"
-                                onClick={handleSwapOffer}
+                                onClick={() => setShowSwapConfirm(true)}
                                 className="flex-1 py-3.5 bg-orange-50 text-orange-600 border border-orange-200 rounded-xl font-bold hover:bg-orange-100 transition-colors flex items-center justify-center space-x-2"
                             >
                                 <ArrowRightLeft size={18} />
@@ -234,6 +231,28 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                     </div>
                 </form>
             </div>
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={handleDelete}
+                title="Delete Shift"
+                message="Are you sure you want to delete this shift? This action cannot be undone."
+                confirmText="Delete"
+                variant="danger"
+            />
+
+            {/* Swap Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={showSwapConfirm}
+                onClose={() => setShowSwapConfirm(false)}
+                onConfirm={handleSwapOffer}
+                title="Offer Shift for Swap"
+                message="This will post your shift as available for swap with other team members."
+                confirmText="Offer Swap"
+                variant="warning"
+            />
         </div>
     );
 };

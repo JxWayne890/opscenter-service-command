@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { Calendar, User, Clock, MoreVertical, Shield, CheckCircle2, AlertCircle, LogOut, Edit2, Lock } from 'lucide-react';
+import { Calendar, User, Clock, MoreVertical, Shield, CheckCircle2, AlertCircle, LogOut, Edit2, Lock, Trash2, X } from 'lucide-react';
 import { Shift, Profile } from '../../types';
 import { useOpsCenter } from '../../services/store';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface SmartRosterTableProps {
     shifts: Shift[];
+    onMemberClick?: (staffId: string) => void;
 }
 
-const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ shifts }) => {
-    const { currentUser, approveShifts, forceClockOut, clockOut } = useOpsCenter();
+const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ shifts, onMemberClick }) => {
+    const { currentUser, approveShifts, deleteShifts, forceClockOut, clockOut } = useOpsCenter();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const toggleSelect = (id: string) => {
         const newSet = new Set(selectedIds);
@@ -29,6 +32,12 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ shifts }) => {
     const handleBulkApprove = async () => {
         await approveShifts(Array.from(selectedIds));
         setSelectedIds(new Set());
+    };
+
+    const handleBulkDelete = async () => {
+        await deleteShifts(Array.from(selectedIds));
+        setSelectedIds(new Set());
+        setShowDeleteConfirm(false);
     };
 
     // Helper for Status Badge
@@ -53,13 +62,28 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ shifts }) => {
             {selectedIds.size > 0 && (
                 <div className="bg-indigo-50 px-6 py-3 flex items-center justify-between border-b border-indigo-100 animate-in slide-in-from-top-2">
                     <span className="text-xs font-bold text-indigo-900">{selectedIds.size} shifts selected</span>
-                    <button
-                        onClick={handleBulkApprove}
-                        className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
-                    >
-                        <CheckCircle2 size={14} />
-                        <span>Approve Selected</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="bg-white text-rose-600 border border-rose-100 px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-rose-50 transition-colors flex items-center gap-2"
+                        >
+                            <Trash2 size={14} />
+                            <span>Delete Selected</span>
+                        </button>
+                        <button
+                            onClick={handleBulkApprove}
+                            className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
+                        >
+                            <CheckCircle2 size={14} />
+                            <span>Approve Selected</span>
+                        </button>
+                        <button
+                            onClick={() => setSelectedIds(new Set())}
+                            className="p-2 text-indigo-400 hover:text-indigo-600 transition-colors"
+                        >
+                            <X size={16} />
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -101,7 +125,10 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ shifts }) => {
                                         />
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="flex items-center space-x-3">
+                                        <div
+                                            className="flex items-center space-x-3 cursor-pointer hover:opacity-75 transition-opacity"
+                                            onClick={() => shift.user_id && onMemberClick?.(shift.user_id)}
+                                        >
                                             {shift.profile?.avatar_url ? (
                                                 <img src={shift.profile.avatar_url} className="w-8 h-8 rounded-full border border-slate-200" />
                                             ) : (
@@ -110,7 +137,9 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ shifts }) => {
                                                 </div>
                                             )}
                                             <div>
-                                                <div className="text-sm font-bold text-slate-900">{shift.profile?.full_name || 'Unknown User'}</div>
+                                                <div className="text-sm font-bold text-slate-900 hover:text-indigo-600 transition-colors">
+                                                    {shift.profile?.full_name || 'Unknown User'}
+                                                </div>
                                                 {isMe && <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded">YOU</span>}
                                             </div>
                                         </div>
@@ -184,6 +213,16 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ shifts }) => {
                     No shifts found for this period.
                 </div>
             )}
+
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={handleBulkDelete}
+                title="Delete Shifts"
+                message={`Are you sure you want to delete ${selectedIds.size} selected shifts? This action cannot be undone.`}
+                confirmText="Delete Shifts"
+                variant="danger"
+            />
         </div>
     );
 };

@@ -7,7 +7,18 @@ export interface Organization {
   name: string;
   slug: string;
   industry: string;
+  invite_code?: string;
   settings?: Record<string, any>;
+}
+
+export interface Invitation {
+  id: string;
+  organization_id: string;
+  email: string;
+  role: 'manager' | 'staff';
+  status: 'pending' | 'accepted' | 'expired';
+  created_at?: string;
+  expires_at?: string;
 }
 
 export interface Profile {
@@ -19,6 +30,22 @@ export interface Profile {
   avatar_url?: string;
   status: 'active' | 'inactive' | 'pending';
   hourly_rate?: number;
+  schedule_config?: ScheduleConfig;
+}
+
+export type ScheduleType = 'fixed' | 'rotating';
+
+export interface ScheduleConfig {
+  type: ScheduleType;
+  // For Fixed:
+  fixed_days?: number[]; // 0-6, e.g. [1,2,3,4,5] for M-F
+  // For Rotating:
+  days_on?: number;
+  days_off?: number;
+  anchor_date?: string; // Date to start the rotation calculation
+  // Shift times (HH:MM format)
+  shift_start_time?: string; // e.g. "09:00"
+  shift_end_time?: string;   // e.g. "17:00"
 }
 
 export interface Shift {
@@ -28,9 +55,10 @@ export interface Shift {
   start_time: string;
   end_time: string;
   role_type: string;
-  status: 'active' | 'published' | 'draft';
+  status: 'active' | 'published' | 'draft' | 'approved' | 'pending_approval' | 'completed' | 'rejected';
   is_open: boolean;
   notes?: string;
+  break_duration?: number; // Joined/Computed field for UI
 
   // Local/Joined fields (not in DB table directly but useful for UI)
   profile?: Profile;
@@ -111,6 +139,27 @@ export interface CommTemplate {
   name: string;
   subject?: string;
   body: string;
+}
+
+// --- Copilot Types ---
+export interface StaffingRatio {
+  id: string;
+  organization_id: string;
+  zone_name: string;
+  staff_count: number;
+  dog_count: number;
+}
+
+export interface StaffingRule {
+  id: string;
+  organization_id: string;
+  name: string;
+  rule_config: {
+    min_staff?: number;
+    roles?: string[];
+    [key: string]: any;
+  };
+  is_active: boolean;
 }
 
 // --- View Types ---
