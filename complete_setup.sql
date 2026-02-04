@@ -203,6 +203,7 @@ ALTER TABLE comm_templates DISABLE ROW LEVEL SECURITY;
 ALTER TABLE staffing_ratios DISABLE ROW LEVEL SECURITY;
 ALTER TABLE staffing_rules DISABLE ROW LEVEL SECURITY;
 ALTER TABLE invitations DISABLE ROW LEVEL SECURITY;
+ALTER TABLE pay_stubs DISABLE ROW LEVEL SECURITY;
 
 -- =====================================================
 -- SEED DATA

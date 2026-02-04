@@ -18,4 +18,7 @@ alter table availability disable row level security;
 -- 5. Time Off Requests
 alter table time_off_requests disable row level security;
 
+-- 6. Pay Stubs (Fixes Payroll Approvals in Demo Mode)
+alter table pay_stubs disable row level security;
+
 -- NOTE: In a production environment, you would Re-Enable these and strictly use supabase.auth.signInWithPassword().
