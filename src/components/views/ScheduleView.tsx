@@ -12,6 +12,19 @@ const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const ScheduleView = () => {
     const { shifts, staff, publishSchedule, updateShift, deleteShift, currentUser, generateShiftsFromPattern } = useOpsCenter();
+
+    // Helper for role-based colors
+    const getRoleColors = (role: string = 'Staff') => {
+        const r = role.toLowerCase();
+        if (r.includes('server')) return { bg: 'bg-indigo-100/50', border: 'border-indigo-200', text: 'text-indigo-900', dot: 'bg-indigo-600', card: 'bg-indigo-50 border-indigo-200', highlight: 'bg-indigo-50' };
+        if (r.includes('cook') || r.includes('chef')) return { bg: 'bg-amber-100/50', border: 'border-amber-200', text: 'text-amber-900', dot: 'bg-amber-600', card: 'bg-amber-50 border-amber-200', highlight: 'bg-amber-50' };
+        if (r.includes('mana')) return { bg: 'bg-purple-100/50', border: 'border-purple-200', text: 'text-purple-900', dot: 'bg-purple-600', card: 'bg-purple-50 border-purple-200', highlight: 'bg-purple-50' };
+        if (r.includes('host')) return { bg: 'bg-emerald-100/50', border: 'border-emerald-200', text: 'text-emerald-900', dot: 'bg-emerald-600', card: 'bg-emerald-50 border-emerald-200', highlight: 'bg-emerald-50' };
+        if (r.includes('bart')) return { bg: 'bg-rose-100/50', border: 'border-rose-200', text: 'text-rose-900', dot: 'bg-rose-600', card: 'bg-rose-50 border-rose-200', highlight: 'bg-rose-50' };
+        if (r.includes('staff')) return { bg: 'bg-blue-100/50', border: 'border-blue-200', text: 'text-blue-900', dot: 'bg-blue-600', card: 'bg-blue-50 border-blue-200', highlight: 'bg-blue-50' };
+        return { bg: 'bg-slate-100/50', border: 'border-slate-200', text: 'text-slate-900', dot: 'bg-slate-500', card: 'bg-slate-50 border-slate-200', highlight: 'bg-slate-50/50' };
+    };
+
     const canManageSchedule = isManager(currentUser);
     const [currentWeekStart, setCurrentWeekStart] = useState(new Date());
 
@@ -102,6 +115,7 @@ const ScheduleView = () => {
     };
 
     const handleNewShift = (date: Date, userId?: string) => {
+        if (!canManageSchedule) return;
         setEditingShift(undefined);
         setModalDate(date);
         setModalUserId(userId);
@@ -110,6 +124,7 @@ const ScheduleView = () => {
 
     const handleEditShift = (shift: Shift, e: React.MouseEvent) => {
         e.stopPropagation();
+        // Staff can only view/edit their own shifts or view others' (modal handles internal permissions)
         setEditingShift(shift);
         setModalDate(undefined);
         setModalUserId(undefined);
@@ -360,12 +375,13 @@ const ScheduleView = () => {
                                 <div className="space-y-3">
                                     {mobileShifts.filter(s => !s.is_open && s.id !== myMobileShift?.id).map(shift => {
                                         const user = staff.find(u => u.id === shift.user_id);
+                                        const colors = getRoleColors(shift.role_type);
                                         return (
-                                            <div key={shift.id} onClick={(e) => handleEditShift(shift, e)} className="glass-panel p-3 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-indigo-300 transition-colors">
+                                            <div key={shift.id} onClick={(e) => handleEditShift(shift, e)} className={`glass-panel p-3 rounded-2xl flex items-center gap-3 cursor-pointer hover:border-indigo-300 transition-colors border-l-4 ${colors.border}`}>
                                                 <div className="relative">
                                                     <img src={user?.avatar_url || 'https://via.placeholder.com/40'} alt={user?.full_name} className="w-12 h-12 rounded-2xl object-cover shadow-sm" />
                                                     <div className="absolute -bottom-1 -right-1 bg-white rounded-full p-0.5 shadow-sm">
-                                                        <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white"></div>
+                                                        <div className={`w-2.5 h-2.5 ${colors.dot} rounded-full border-2 border-white`}></div>
                                                     </div>
                                                 </div>
                                                 <div className="flex-1 min-w-0">
@@ -377,7 +393,7 @@ const ScheduleView = () => {
                                                             {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase()} - {new Date(shift.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase()}
                                                         </span>
                                                     </div>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{shift.role_type}</p>
+                                                    <p className={`text-[10px] font-bold ${colors.text} uppercase tracking-wide`}>{shift.role_type}</p>
                                                 </div>
                                             </div>
                                         );
@@ -593,10 +609,10 @@ const ScheduleView = () => {
                                                                     onDragStart={(e) => handleDragStart(e, shift.id)}
                                                                     onDragEnd={handleDragEnd}
                                                                     onClick={(e) => { e.stopPropagation(); handleEditShift(shift, e); }}
-                                                                    className="bg-white border-2 border-dashed border-indigo-200 text-slate-600 p-2.5 rounded-xl cursor-pointer hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/5 transition-all group/shift pointer-events-auto shadow-sm"
+                                                                    className="bg-white border-2 border-dashed border-slate-200 text-slate-600 p-2.5 rounded-xl cursor-pointer hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/5 transition-all group/shift pointer-events-auto shadow-sm"
                                                                 >
                                                                     <div className="flex justify-between items-start mb-1">
-                                                                        <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md">
+                                                                        <span className="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
                                                                             {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()}
                                                                         </span>
                                                                     </div>
@@ -635,46 +651,58 @@ const ScheduleView = () => {
                                                 {/* Days Cells */}
                                                 {weekDates.map((date, i) => {
                                                     const dayShifts = shifts.filter(s => s.user_id === user.id && new Date(s.start_time).toDateString() === date.toDateString());
+                                                    const hasShifts = dayShifts.length > 0;
+                                                    const firstShift = dayShifts[0];
+                                                    const colors = firstShift ? getRoleColors(firstShift.role_type) : null;
+
                                                     return (
                                                         <div
                                                             key={i}
-                                                            className="p-1 min-h-[100px] relative transition-colors hover:bg-slate-50/30 cursor-pointer"
-                                                            onDragOver={handleDragOver}
-                                                            onDrop={(e) => handleDrop(e, date, user.id)}
-                                                            onClick={() => handleNewShift(date, user.id)}
+                                                            className={`p-1 min-h-[100px] relative transition-all duration-300 ${canManageSchedule ? 'cursor-pointer' : 'cursor-default'} ${hasShifts ? (colors?.highlight || 'bg-blue-50/50') : 'bg-slate-100/40'}`}
+                                                            onDragOver={canManageSchedule ? handleDragOver : undefined}
+                                                            onDrop={canManageSchedule ? (e) => handleDrop(e, date, user.id) : undefined}
+                                                            onClick={() => canManageSchedule && handleNewShift(date, user.id)}
                                                         >
-                                                            <div className="h-full w-full rounded-xl border border-transparent hover:border-dashed hover:border-slate-300 transition-all p-1">
+                                                            <div className={`h-full w-full rounded-2xl border transition-all p-1 ${hasShifts ? 'border-transparent' : 'border-transparent group-hover:border-slate-200/50 group-hover:bg-white/40'}`}>
+                                                                {!hasShifts && (
+                                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none">
+                                                                        <Plus size={32} className="text-slate-400" />
+                                                                    </div>
+                                                                )}
                                                                 <div className="space-y-2 pointer-events-none">
-                                                                    {dayShifts.map(shift => (
-                                                                        <div
-                                                                            key={shift.id}
-                                                                            draggable
-                                                                            onDragStart={(e) => handleDragStart(e, shift.id)}
-                                                                            onDragEnd={handleDragEnd}
-                                                                            onClick={(e) => { e.stopPropagation(); handleEditShift(shift, e); }}
-                                                                            className={`relative z-10 p-2.5 rounded-xl cursor-pointer shadow-sm border hover:shadow-md transition-all pointer-events-auto group/card ${shift.is_open
+                                                                    {dayShifts.map(shift => {
+                                                                        const shiftColors = getRoleColors(shift.role_type);
+                                                                        return (
+                                                                            <div
+                                                                                key={shift.id}
+                                                                                draggable
+                                                                                onDragStart={(e) => handleDragStart(e, shift.id)}
+                                                                                onDragEnd={handleDragEnd}
+                                                                                onClick={(e) => { e.stopPropagation(); handleEditShift(shift, e); }}
+                                                                                className={`relative z-10 p-3 rounded-2xl cursor-pointer shadow-sm border transition-all pointer-events-auto group/card hover:shadow-md hover:-translate-y-0.5 ${shift.is_open
                                                                                     ? 'bg-slate-100 border-slate-200 text-slate-600'
-                                                                                    : 'bg-white border-slate-200/60'
-                                                                                }`}
-                                                                        >
-                                                                            <div className="flex justify-between items-center mb-1.5">
-                                                                                <div className="flex items-center gap-1.5">
-                                                                                    <div className={`w-1.5 h-1.5 rounded-full ${shift.is_open ? 'bg-slate-400' : 'bg-emerald-500'}`}></div>
-                                                                                    <span className="text-[10px] font-bold text-slate-400">
-                                                                                        {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()}
-                                                                                    </span>
-                                                                                </div>
-                                                                                {!shift.is_open && (
-                                                                                    <div className="opacity-0 group-hover/card:opacity-100 transition-opacity">
-                                                                                        <MoreHorizontal size={12} className="text-slate-400" />
+                                                                                    : `${shiftColors.card} ${shiftColors.border}`
+                                                                                    }`}
+                                                                            >
+                                                                                <div className="flex justify-between items-center mb-1.5">
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        <div className={`w-2 h-2 rounded-full ${shift.is_open ? 'bg-slate-400' : shiftColors.dot}`}></div>
+                                                                                        <span className={`${shift.is_open ? 'text-slate-400' : shiftColors.text} text-[10px] font-black`}>
+                                                                                            {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()}
+                                                                                        </span>
                                                                                     </div>
-                                                                                )}
+                                                                                    {!shift.is_open && (
+                                                                                        <div className="opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                                                                            <MoreHorizontal size={12} className="text-slate-400" />
+                                                                                        </div>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className={`text-xs font-black leading-tight tracking-tight uppercase ${shift.is_open ? 'text-slate-500' : shiftColors.text}`}>
+                                                                                    {shift.role_type}
+                                                                                </div>
                                                                             </div>
-                                                                            <div className={`text-xs font-bold leading-tight ${shift.is_open ? 'text-slate-500' : 'text-slate-700'}`}>
-                                                                                {shift.role_type}
-                                                                            </div>
-                                                                        </div>
-                                                                    ))}
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -749,9 +777,9 @@ const ScheduleView = () => {
                                                                 <>
                                                                     {shiftsToShow.map((shift, i) => {
                                                                         const staffMember = staff.find(s => s.id === shift.user_id);
-                                                                        const staffIndex = staff.findIndex(s => s.id === shift.user_id);
                                                                         const initials = shift.is_open ? '?' : (staffMember?.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() || '??');
-                                                                        const colorClass = shift.is_open ? 'bg-slate-300' : colors[staffIndex % colors.length];
+                                                                        const roleColors = getRoleColors(shift.role_type);
+                                                                        const colorClass = shift.is_open ? 'bg-slate-300' : roleColors.dot;
                                                                         const fullName = shift.is_open ? 'Open Shift' : (staffMember?.full_name || 'Unassigned');
                                                                         const time = new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
                                                                         const isRestricted = !canManageSchedule && shift.user_id !== currentUser.id;
@@ -763,8 +791,8 @@ const ScheduleView = () => {
                                                                                     if (isRestricted) return;
                                                                                     handleEditShift(shift, e);
                                                                                 }}
-                                                                                title={`${time} - ${fullName}`}
-                                                                                className={`w-7 h-7 rounded-lg ${colorClass} text-white text-[10px] font-bold flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-md transition-all inset-shadow-sm ${isRestricted ? 'opacity-30 pointer-events-none grayscale' : ''}`}
+                                                                                title={`${time} - ${fullName} (${shift.role_type})`}
+                                                                                className={`w-7 h-7 rounded-lg ${colorClass} text-white text-[10px] font-bold flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-md transition-all shadow-sm ${isRestricted ? 'opacity-30 pointer-events-none grayscale' : ''}`}
                                                                             >
                                                                                 {initials}
                                                                             </div>

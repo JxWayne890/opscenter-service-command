@@ -2,8 +2,78 @@ import React, { useState, useEffect } from 'react';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
 import { SupabaseService } from '../../services/db';
-import { UserPlus, Settings, Bell, Shield, LogOut, Copy, CheckCircle, Key, Banknote, HelpCircle, Save, AlertCircle } from 'lucide-react';
+import { UserPlus, Settings, Bell, Shield, LogOut, Copy, CheckCircle, Key, Banknote, HelpCircle, Save, AlertCircle, Trash2 } from 'lucide-react';
+import OffboardingModal from '../staff/OffboardingModal';
 import { Organization } from '../../types';
+
+// Invite Code Card Component
+const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoon = false }: {
+    label: string;
+    code: string;
+    description: string;
+    colorScheme: 'indigo' | 'emerald' | 'amber';
+    icon: string;
+    comingSoon?: boolean;
+}) => {
+    const [copied, setCopied] = useState(false);
+
+    const colorStyles = {
+        indigo: {
+            bg: 'bg-gradient-to-br from-indigo-50 to-purple-50',
+            border: 'border-indigo-100',
+            text: 'text-indigo-900',
+            subtext: 'text-indigo-400',
+            button: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+        },
+        emerald: {
+            bg: 'bg-gradient-to-br from-emerald-50 to-teal-50',
+            border: 'border-emerald-100',
+            text: 'text-emerald-900',
+            subtext: 'text-emerald-500',
+            button: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+        },
+        amber: {
+            bg: 'bg-gradient-to-br from-amber-50 to-orange-50',
+            border: 'border-amber-100',
+            text: 'text-amber-900',
+            subtext: 'text-amber-500',
+            button: 'bg-amber-600 hover:bg-amber-700 text-white',
+        },
+    };
+
+    const colors = colorStyles[colorScheme];
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(code);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className={`relative p-5 rounded-2xl border ${colors.bg} ${colors.border} transition-all hover:shadow-lg`}>
+            {comingSoon && (
+                <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full uppercase">
+                    Coming Soon
+                </div>
+            )}
+            <div className="text-2xl mb-3">{icon}</div>
+            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${colors.subtext}`}>{label}</p>
+            <p className={`text-2xl font-black tracking-[0.2em] mb-2 ${colors.text}`}>{code}</p>
+            <p className="text-xs text-slate-500 mb-4">{description}</p>
+            <button
+                onClick={handleCopy}
+                disabled={comingSoon}
+                className={`w-full py-2.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${comingSoon ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : colors.button}`}
+            >
+                {copied ? (
+                    <><CheckCircle size={16} /> Copied!</>
+                ) : (
+                    <><Copy size={16} /> Copy Code</>
+                )}
+            </button>
+        </div>
+    );
+};
 
 const SettingsView = () => {
     const { setInviteModalOpen, logout, currentUser, organization, updateOrganizationSettings } = useOpsCenter();
@@ -14,6 +84,7 @@ const SettingsView = () => {
     const [payPeriod, setPayPeriod] = useState(organization?.pay_period || 'weekly');
     const [startDay, setStartDay] = useState(organization?.pay_period_start_day || 1);
     const [isSaving, setIsSaving] = useState(false);
+    const [showSelfDeleteModal, setShowSelfDeleteModal] = useState(false);
 
     useEffect(() => {
         if (organization) {
@@ -63,44 +134,52 @@ const SettingsView = () => {
         <div className="space-y-6 animate-in fade-in duration-700">
             <h2 className="text-2xl font-bold text-slate-900">Settings</h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Invite Code Section */}
-                <SectionCard className="space-y-4 md:col-span-2">
+            {/* Invite Codes Section - Admin Only */}
+            {isAdmin && (
+                <SectionCard className="space-y-6 md:col-span-2">
                     <div className="flex items-center space-x-3 mb-2">
                         <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
                             <Key size={20} />
                         </div>
                         <div>
-                            <h3 className="font-bold text-slate-900">Organization Invite Code</h3>
-                            <p className="text-xs text-slate-400">Share this code with new team members to join</p>
+                            <h3 className="font-bold text-slate-900">Invite Codes</h3>
+                            <p className="text-xs text-slate-400">Share these codes for new users to join with the appropriate role</p>
                         </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-6 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-indigo-100 rounded-2xl">
-                        <div>
-                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Your Invite Code</p>
-                            <p className="text-4xl font-black text-indigo-900 tracking-[0.3em]">{inviteCode || '------'}</p>
-                        </div>
-                        <button
-                            onClick={handleCopyCode}
-                            className="flex items-center space-x-2 px-5 py-3 bg-white rounded-xl shadow-sm hover:shadow-md transition-all text-indigo-600 font-bold text-sm border border-indigo-100"
-                        >
-                            {copied ? (
-                                <>
-                                    <CheckCircle size={18} />
-                                    <span>Copied!</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Copy size={18} />
-                                    <span>Copy Code</span>
-                                </>
-                            )}
-                        </button>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {/* Staff Code */}
+                        <InviteCodeCard
+                            label="Staff Invite Code"
+                            code="DOGS24"
+                            description="For team members to join as staff"
+                            colorScheme="indigo"
+                            icon="👤"
+                        />
+
+                        {/* Admin Code */}
+                        <InviteCodeCard
+                            label="Admin Invite Code"
+                            code="ADMIN24"
+                            description="For managers with full access"
+                            colorScheme="emerald"
+                            icon="🔐"
+                        />
+
+                        {/* Client Code */}
+                        <InviteCodeCard
+                            label="Client Invite Code"
+                            code="PET24"
+                            description="Client portal coming soon"
+                            colorScheme="amber"
+                            icon="🐕"
+                            comingSoon
+                        />
                     </div>
-                    <p className="text-xs text-slate-400">New staff can use this code on the login screen by clicking "Join with Invite Code"</p>
                 </SectionCard>
+            )}
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Team Management Section */}
                 <SectionCard className="space-y-4">
                     <div className="flex items-center space-x-3 mb-2">
@@ -266,8 +345,46 @@ const SettingsView = () => {
                         </div>
                     </SectionCard>
                 )}
-
             </div>
+
+            {/* Danger Zone - Delete Own Account */}
+            <div className="mt-12 pt-12 border-t border-slate-200">
+                <SectionCard className="border-rose-100 bg-rose-50/20">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-start gap-4">
+                            <div className="p-3 bg-rose-100 text-rose-600 rounded-2xl shrink-0">
+                                <Trash2 size={24} />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900">Danger Zone</h3>
+                                <p className="text-sm text-slate-500 font-medium">Permanently delete your entire provider profile and all associated data.</p>
+                                <p className="text-xs text-rose-600 font-bold mt-2 flex items-center gap-1.5 uppercase tracking-wider">
+                                    <AlertCircle size={14} />
+                                    This action is final and cannot be undone
+                                </p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowSelfDeleteModal(true)}
+                            className="px-6 py-3 bg-rose-600 text-white font-bold text-sm rounded-xl hover:bg-rose-700 shadow-lg shadow-rose-200 transition-all active:scale-95 whitespace-nowrap"
+                        >
+                            Delete My Account
+                        </button>
+                    </div>
+                </SectionCard>
+            </div>
+
+            {showSelfDeleteModal && (
+                <OffboardingModal
+                    isOpen={showSelfDeleteModal}
+                    onClose={() => setShowSelfDeleteModal(false)}
+                    staffMembers={[currentUser]}
+                    onSuccess={() => {
+                        setShowSelfDeleteModal(false);
+                        logout(); // Sign out after self-deletion
+                    }}
+                />
+            )}
         </div>
     );
 };

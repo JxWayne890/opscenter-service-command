@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Clock, User, Briefcase, Calendar, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { Shift, Profile, ShiftSwap } from '../../types';
+import { isManager } from '../../services/permissions';
 import AnalogTimePicker from '../ui/AnalogTimePicker';
 import CustomSelect from '../ui/CustomSelect';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -25,6 +26,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
     const [error, setError] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showSwapConfirm, setShowSwapConfirm] = useState(false);
+    const canManage = isManager(currentUser);
 
     useEffect(() => {
         if (isOpen) {
@@ -60,6 +62,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!canManage) return;
         setError(null);
 
         // Construct basic timestamps (using defaultDate or today)
@@ -182,27 +185,29 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Toggle Open / Assigned */}
-                    <div className="flex bg-slate-100/80 p-1.5 rounded-2xl">
-                        <button
-                            type="button"
-                            onClick={() => setIsOpenShift(false)}
-                            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wide rounded-xl transition-all ${!isOpenShift
-                                ? 'bg-white text-indigo-600 shadow-md transform scale-[1.02]'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                        >
-                            Assigned Staff
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setIsOpenShift(true)}
-                            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wide rounded-xl transition-all ${isOpenShift
-                                ? 'bg-white text-orange-600 shadow-md transform scale-[1.02]'
-                                : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
-                        >
-                            Open Shift
-                        </button>
-                    </div>
+                    {/* Toggle Open / Assigned - Only for Managers */}
+                    {canManage && (
+                        <div className="flex bg-slate-100/80 p-1.5 rounded-2xl">
+                            <button
+                                type="button"
+                                onClick={() => setIsOpenShift(false)}
+                                className={`flex-1 py-3 text-xs font-bold uppercase tracking-wide rounded-xl transition-all ${!isOpenShift
+                                    ? 'bg-white text-indigo-600 shadow-md transform scale-[1.02]'
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                            >
+                                Assigned Staff
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setIsOpenShift(true)}
+                                className={`flex-1 py-3 text-xs font-bold uppercase tracking-wide rounded-xl transition-all ${isOpenShift
+                                    ? 'bg-white text-orange-600 shadow-md transform scale-[1.02]'
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'}`}
+                            >
+                                Open Shift
+                            </button>
+                        </div>
+                    )}
 
                     {!isOpenShift && (
                         <div className="animate-in fade-in slide-in-from-top-2 duration-300">
@@ -213,6 +218,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                                 onChange={setUserId}
                                 placeholder="Select Employee"
                                 icon={<User size={18} />}
+                                disabled={!canManage}
                             />
                         </div>
                     )}
@@ -225,7 +231,8 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                                 type="text"
                                 value={roleType}
                                 onChange={(e) => setRoleType(e.target.value)}
-                                className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400"
+                                disabled={!canManage}
+                                className="w-full pl-12 pr-4 py-4 bg-slate-50/50 border border-slate-200/60 rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all placeholder:text-slate-400 disabled:opacity-75 disabled:cursor-not-allowed"
                                 placeholder="e.g. Server, Cook, Manager"
                             />
                         </div>
@@ -236,11 +243,13 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                             label="Start Time"
                             value={startTime}
                             onChange={(time) => setStartTime(time)}
+                            disabled={!canManage}
                         />
                         <AnalogTimePicker
                             label="End Time"
                             value={endTime}
                             onChange={(time) => setEndTime(time)}
+                            disabled={!canManage}
                         />
                     </div>
 
@@ -249,13 +258,14 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                         <textarea
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200/60 rounded-2xl text-sm font-medium text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none resize-none h-24 transition-all placeholder:text-slate-400"
+                            disabled={!canManage}
+                            className="w-full px-4 py-3 bg-slate-50/50 border border-slate-200/60 rounded-2xl text-sm font-medium text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none resize-none h-16 transition-all placeholder:text-slate-400 disabled:opacity-75 disabled:cursor-not-allowed"
                             placeholder="Add shift details, duties, or instructions..."
                         />
                     </div>
 
                     <div className="pt-4 flex gap-3">
-                        {editShift && (
+                        {editShift && canManage && (
                             <button
                                 type="button"
                                 onClick={() => setShowDeleteConfirm(true)}
@@ -274,12 +284,23 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                                 <span>Offer Swap</span>
                             </button>
                         )}
-                        <button
-                            type="submit"
-                            className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-xl shadow-slate-900/20 hover:bg-slate-800 hover:shadow-2xl hover:-translate-y-0.5 transition-all active:scale-[0.98]"
-                        >
-                            {editShift ? 'Update Shift' : 'Create Shift'}
-                        </button>
+                        {canManage && (
+                            <button
+                                type="submit"
+                                className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl font-bold text-sm shadow-xl shadow-slate-900/20 hover:bg-slate-800 hover:shadow-2xl hover:-translate-y-0.5 transition-all active:scale-[0.98]"
+                            >
+                                {editShift ? 'Update Shift' : 'Create Shift'}
+                            </button>
+                        )}
+                        {!canManage && !isMyShift && (
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all active:scale-[0.98]"
+                            >
+                                Close
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>

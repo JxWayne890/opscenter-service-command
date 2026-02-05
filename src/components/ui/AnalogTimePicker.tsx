@@ -5,9 +5,10 @@ interface AnalogTimePickerProps {
     value: string; // HH:MM format
     onChange: (time: string) => void;
     label?: string;
+    disabled?: boolean;
 }
 
-const AnalogTimePicker: React.FC<AnalogTimePickerProps> = ({ value, onChange, label }) => {
+const AnalogTimePicker: React.FC<AnalogTimePickerProps> = ({ value, onChange, label, disabled = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<'hour' | 'minute'>('hour');
     const containerRef = useRef<HTMLDivElement>(null);
@@ -120,19 +121,22 @@ const AnalogTimePicker: React.FC<AnalogTimePickerProps> = ({ value, onChange, la
             {/* Display Button */}
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl hover:border-indigo-300 transition-all group"
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                disabled={disabled}
+                className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl transition-all group ${disabled ? 'bg-slate-100/50 border-slate-100 cursor-not-allowed' : 'bg-slate-50 border-slate-200 hover:border-indigo-300'}`}
             >
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center text-white shadow-md">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white shadow-md ${disabled ? 'bg-slate-300' : 'bg-gradient-to-br from-indigo-500 to-purple-600'}`}>
                         <Clock size={20} />
                     </div>
-                    <span className="text-lg font-bold text-slate-900">{formatDisplay()}</span>
+                    <span className={`text-lg font-bold ${disabled ? 'text-slate-400' : 'text-slate-900'}`}>{formatDisplay()}</span>
                 </div>
-                <div className="flex flex-col">
-                    <ChevronUp size={14} className="text-slate-400" />
-                    <ChevronDown size={14} className="text-slate-400 -mt-1" />
-                </div>
+                {!disabled && (
+                    <div className="flex flex-col">
+                        <ChevronUp size={14} className="text-slate-400" />
+                        <ChevronDown size={14} className="text-slate-400 -mt-1" />
+                    </div>
+                )}
             </button>
 
             {/* Modal Picker - Centered */}
@@ -156,8 +160,8 @@ const AnalogTimePicker: React.FC<AnalogTimePickerProps> = ({ value, onChange, la
                             <button
                                 onClick={() => setMode('hour')}
                                 className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mode === 'hour'
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                             >
                                 Hour
@@ -165,8 +169,8 @@ const AnalogTimePicker: React.FC<AnalogTimePickerProps> = ({ value, onChange, la
                             <button
                                 onClick={() => setMode('minute')}
                                 className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${mode === 'minute'
-                                        ? 'bg-indigo-600 text-white'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-indigo-600 text-white'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                             >
                                 Minute
@@ -181,8 +185,8 @@ const AnalogTimePicker: React.FC<AnalogTimePickerProps> = ({ value, onChange, la
                             <button
                                 onClick={toggleAMPM}
                                 className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${!isPM
-                                        ? 'bg-indigo-600 text-white shadow-lg'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-indigo-600 text-white shadow-lg'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                             >
                                 AM
@@ -190,8 +194,8 @@ const AnalogTimePicker: React.FC<AnalogTimePickerProps> = ({ value, onChange, la
                             <button
                                 onClick={toggleAMPM}
                                 className={`px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${isPM
-                                        ? 'bg-indigo-600 text-white shadow-lg'
-                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                    ? 'bg-indigo-600 text-white shadow-lg'
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                                     }`}
                             >
                                 PM

@@ -5,11 +5,23 @@ import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
 import { isManager } from '../../services/permissions';
 import ShiftCompletionWidget from '../dashboard/ShiftCompletionWidget';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) => {
     const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser } = useOpsCenter();
     const [currentTime, setCurrentTime] = React.useState(new Date());
     const [rosterFilter, setRosterFilter] = React.useState<'all' | 'manager' | 'staff'>('all');
+
+    // Confirmation State
+    const [scheduleWarning, setScheduleWarning] = React.useState<{
+        isOpen: boolean;
+        title: string;
+        message: string;
+    }>({
+        isOpen: false,
+        title: '',
+        message: ''
+    });
 
     React.useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -50,7 +62,46 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
     });
 
     // Get my next shift
-    const nextShift = shifts.find(s => new Date(s.start_time) > new Date()) || null;
+    const myShifts = React.useMemo(() => {
+        if (!currentUser) return [];
+        return shifts
+            .filter(s => s.user_id === currentUser.id)
+            .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+    }, [shifts, currentUser]);
+
+    const nextShift = myShifts.find(s => new Date(s.start_time) > currentTime) || null;
+    const todayShift = myShifts.find(s => new Date(s.start_time).toDateString() === currentTime.toDateString());
+
+    const handleClockIn = () => {
+        if (!todayShift) {
+            setScheduleWarning({
+                isOpen: true,
+                title: 'Not Scheduled Today',
+                message: "You aren't scheduled for a shift today. Would you like to clock in anyway?"
+            });
+            return;
+        }
+
+        const scheduledStart = new Date(todayShift.start_time);
+        const diffMinutes = (scheduledStart.getTime() - currentTime.getTime()) / 60000;
+
+        if (diffMinutes > 15) {
+            setScheduleWarning({
+                isOpen: true,
+                title: 'Clocking In Early',
+                message: `You aren't scheduled to start until ${scheduledStart.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Clock in early anyway?`
+            });
+            return;
+        }
+
+        // Proceed normally
+        clockIn({ lat: 34.05, lng: -118.24 });
+    };
+
+    const confirmScheduleClockIn = () => {
+        clockIn({ lat: 34.05, lng: -118.24 });
+        setScheduleWarning(prev => ({ ...prev, isOpen: false }));
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-10">
@@ -137,7 +188,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                         </div>
                                     )}
                                     <button
-                                        onClick={() => clockIn({ lat: 34.05, lng: -118.24 })}
+                                        onClick={handleClockIn}
                                         className="w-full py-4 bg-gradient-to-r from-indigo-600 to-indigo-800 text-white font-bold rounded-2xl shadow-xl shadow-indigo-500/20 hover:shadow-2xl hover:shadow-indigo-500/30 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 group/btn"
                                     >
                                         <PlayCircle size={20} className="fill-white/20 group-hover/btn:scale-110 transition-transform" />
@@ -356,6 +407,17 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
 
                 </div>
             </div>
+            {/* Schedule Warnings */}
+            <ConfirmDialog
+                isOpen={scheduleWarning.isOpen}
+                onClose={() => setScheduleWarning(prev => ({ ...prev, isOpen: false }))}
+                onConfirm={confirmScheduleClockIn}
+                title={scheduleWarning.title}
+                message={scheduleWarning.message}
+                confirmText="Clock In Anyway"
+                cancelText="Go Back"
+                variant="warning"
+            />
         </div>
     );
 };

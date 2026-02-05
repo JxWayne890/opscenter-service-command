@@ -8,9 +8,10 @@ import ConfirmDialog from '../ui/ConfirmDialog';
 interface SmartRosterTableProps {
     entries: TimeEntry[];
     onMemberClick?: (staffId: string) => void;
+    onEditEntry?: (entry: TimeEntry) => void;
 }
 
-const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberClick }) => {
+const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberClick, onEditEntry }) => {
     const { currentUser, updateTimeEntry, deleteTimeEntries, clockOut, staff } = useOpsCenter();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -215,7 +216,7 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                                                             <CheckCircle2 size={12} /> Approve
                                                         </button>
                                                         <button
-                                                            onClick={() => alert('Edit Mock')}
+                                                            onClick={() => onEditEntry?.(entry)}
                                                             className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 rounded-lg transition-colors"
                                                             title="Edit Entry"
                                                         >

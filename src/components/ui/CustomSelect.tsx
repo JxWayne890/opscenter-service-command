@@ -14,6 +14,7 @@ interface CustomSelectProps {
     placeholder?: string;
     label?: string;
     icon?: React.ReactNode;
+    disabled?: boolean;
 }
 
 const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -22,7 +23,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
     onChange,
     placeholder = 'Select...',
     label,
-    icon
+    icon,
+    disabled = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -53,8 +55,9 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
             {/* Trigger Button */}
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className={`w-full flex items-center justify-between px-4 py-3 bg-slate-50 border rounded-xl text-left transition-all group ${isOpen ? 'border-indigo-400 ring-2 ring-indigo-100' : 'border-slate-200 hover:border-indigo-300'
+                onClick={() => !disabled && setIsOpen(!isOpen)}
+                disabled={disabled}
+                className={`w-full flex items-center justify-between px-4 py-3 border rounded-xl text-left transition-all group ${disabled ? 'bg-slate-100/50 border-slate-100 cursor-not-allowed text-slate-400' : (isOpen ? 'bg-slate-50 border-indigo-400 ring-2 ring-indigo-100' : 'bg-slate-50 border-slate-200 hover:border-indigo-300')
                     }`}
             >
                 <div className="flex items-center gap-3">
@@ -83,8 +86,8 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                                 type="button"
                                 onClick={() => handleSelect(option.value)}
                                 className={`w-full flex items-center justify-between px-4 py-3 text-left transition-all ${value === option.value
-                                        ? 'bg-indigo-50 text-indigo-700'
-                                        : 'hover:bg-slate-50 text-slate-700'
+                                    ? 'bg-indigo-50 text-indigo-700'
+                                    : 'hover:bg-slate-50 text-slate-700'
                                     }`}
                             >
                                 <div className="flex items-center gap-3">

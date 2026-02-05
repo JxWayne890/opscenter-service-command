@@ -5,7 +5,7 @@ import { useOpsCenter } from '../../services/store';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 const PunchPad = () => {
-    const { isClockedIn, activeTimeEntry, clockIn, clockOut, startBreak, endBreak } = useOpsCenter();
+    const { isClockedIn, activeTimeEntry, clockIn, clockOut, startBreak, endBreak, shifts, currentUser } = useOpsCenter();
     const [currentTime, setCurrentTime] = useState(new Date());
     const [locationStatus, setLocationStatus] = useState<'locating' | 'locked' | 'error'>('locating');
 
@@ -76,6 +76,17 @@ const PunchPad = () => {
         }
         setConfirmAction(null);
     };
+
+    // Schedule Check for Punch In
+    const myShiftsToday = shifts.filter(s =>
+        s.user_id === currentUser?.id &&
+        new Date(s.start_time).toDateString() === currentTime.toDateString()
+    ).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+    const todayShift = myShiftsToday[0];
+    const isEarly = todayShift && (new Date(todayShift.start_time).getTime() - currentTime.getTime()) > 15 * 60 * 1000;
+    const isNotScheduled = !todayShift;
+    const isOutOfSchedule = confirmAction === 'in' && (isNotScheduled || isEarly);
 
     return (
         <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex flex-col items-center text-center max-w-md mx-auto relative overflow-hidden">
@@ -161,22 +172,29 @@ const PunchPad = () => {
                 onClose={() => setConfirmAction(null)}
                 onConfirm={executePunch}
                 title={
-                    confirmAction === 'in' ? "Confirm Clock In" :
+                    confirmAction === 'in' ? (isOutOfSchedule ? (isNotScheduled ? "Not Scheduled Today" : "Clocking In Early") : "Confirm Clock In") :
                         confirmAction === 'out' ? "Confirm Clock Out" :
                             confirmAction === 'break_start' ? "Start Lunch" : "End Lunch"
                 }
                 message={
-                    confirmAction === 'in' ? `Are you sure you want to clock in at ${currentTime.toLocaleTimeString()}?` :
-                        confirmAction === 'out' ? `Are you sure you want to clock out at ${currentTime.toLocaleTimeString()}?` :
+                    confirmAction === 'in'
+                        ? (isNotScheduled
+                            ? `You aren't scheduled to work today. Clock in anyway at ${currentTime.toLocaleTimeString()}?`
+                            : isEarly
+                                ? `You aren't scheduled to start until ${new Date(todayShift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Clock in anyway?`
+                                : `Are you sure you want to clock in at ${currentTime.toLocaleTimeString()}?`)
+                        : confirmAction === 'out' ? `Are you sure you want to clock out at ${currentTime.toLocaleTimeString()}?` :
                             confirmAction === 'break_start' ? "Pause your work timer and start your lunch?" :
                                 "Resume work timer and end your lunch?"
                 }
                 confirmText={
-                    confirmAction === 'in' ? "Clock In" :
-                        confirmAction === 'out' ? "Clock Out" :
-                            confirmAction === 'break_start' ? "Start Lunch" : "End Lunch"
+                    isOutOfSchedule ? "Clock In Anyway" :
+                        confirmAction === 'in' ? "Clock In" :
+                            confirmAction === 'out' ? "Clock Out" :
+                                confirmAction === 'break_start' ? "Start Lunch" : "End Lunch"
                 }
-                variant={confirmAction === 'out' ? 'danger' : 'info'}
+                cancelText={isOutOfSchedule ? "Go Back" : "Cancel"}
+                variant={confirmAction === 'out' ? 'danger' : isOutOfSchedule ? 'warning' : 'info'}
             />
         </div>
     );

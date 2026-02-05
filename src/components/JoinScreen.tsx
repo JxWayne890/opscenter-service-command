@@ -23,20 +23,51 @@ const JoinScreen: React.FC<JoinScreenProps> = ({ onJoinSuccess, onBackToLogin })
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Static role-based invite codes
+    const ROLE_CODES: Record<string, { role: 'staff' | 'manager' | 'client', orgId: string }> = {
+        'DOGS24': { role: 'staff', orgId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+        'ADMIN24': { role: 'manager', orgId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+        'PET24': { role: 'client', orgId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+    };
+
     const handleVerifyCode = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsLoading(true);
         setError(null);
 
         try {
-            const result = await SupabaseService.getInvitationByCode(inviteCode);
-            if (result?.organization) {
-                setOrganization(result.organization);
-                // Default role from invite or staff
-                setInviteRole(result.invitation?.role || 'staff');
-                setStep('profile');
+            const upperCode = inviteCode.toUpperCase();
+
+            // Check if it's a static role-based code
+            if (ROLE_CODES[upperCode]) {
+                const { role, orgId } = ROLE_CODES[upperCode];
+
+                // Handle client code - show "coming soon" message
+                if (role === 'client') {
+                    setError('Client portal is coming soon! Please check back later.');
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Fetch the organization with this ID
+                const org = await SupabaseService.getOrganization();
+                if (org) {
+                    setOrganization(org);
+                    setInviteRole(role);
+                    setStep('profile');
+                } else {
+                    setError('Organization not found. Please contact support.');
+                }
             } else {
-                setError('Invalid invite code. Please check and try again.');
+                // Fall back to database lookup for dynamic codes
+                const result = await SupabaseService.getInvitationByCode(upperCode);
+                if (result?.organization) {
+                    setOrganization(result.organization);
+                    setInviteRole(result.invitation?.role || 'staff');
+                    setStep('profile');
+                } else {
+                    setError('Invalid invite code. Please check and try again.');
+                }
             }
         } catch (err) {
             setError('Something went wrong. Please try again.');

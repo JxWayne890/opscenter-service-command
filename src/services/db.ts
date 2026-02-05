@@ -99,6 +99,27 @@ export const SupabaseService = {
     return data;
   },
 
+  async createProfiles(profiles: Omit<Profile, 'created_at' | 'updated_at'>[]): Promise<Profile[]> {
+    console.log(`Bulk creating ${profiles.length} profiles...`);
+    const profilesWithOrg = profiles.map(p => ({
+      ...p,
+      organization_id: p.organization_id || ORG_ID,
+      status: p.status || 'active',
+      hourly_rate: p.hourly_rate || 0
+    }));
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert(profilesWithOrg)
+      .select();
+
+    if (error) {
+      console.error('Error creating profiles (bulk):', error.message);
+      return [];
+    }
+    return data || [];
+  },
+
   async updateProfile(id: string, updates: Partial<Profile>): Promise<boolean> {
     const { error } = await supabase
       .from('profiles')
@@ -129,17 +150,22 @@ export const SupabaseService = {
   },
 
   async createShift(shift: Omit<Shift, 'created_at'>): Promise<Shift | null> {
+    console.log('[DB] Creating shift:', shift);
+
+    // Clean the object: Remove 'profile' as it's not a DB column
+    const { profile, ...cleanShift } = shift as any;
+
     const { data, error } = await supabase
       .from('shifts')
       .insert([{
-        ...shift,
-        organization_id: ORG_ID
+        ...cleanShift,
+        organization_id: cleanShift.organization_id || ORG_ID
       }])
       .select()
       .single();
 
     if (error) {
-      console.error('Error creating shift:', error);
+      console.error('Error creating shift:', error.message);
       return null;
     }
     return data;
@@ -148,11 +174,14 @@ export const SupabaseService = {
   async createShifts(shifts: Omit<Shift, 'created_at'>[]): Promise<Shift[]> {
     if (shifts.length === 0) return [];
 
-    // Ensure all have org ID
-    const shiftsWithOrg = shifts.map(s => ({
-      ...s,
-      organization_id: ORG_ID
-    }));
+    // Ensure all have org ID and no extra fields
+    const shiftsWithOrg = shifts.map(s => {
+      const { profile, ...clean } = s as any;
+      return {
+        ...clean,
+        organization_id: clean.organization_id || ORG_ID
+      };
+    });
 
     const { data, error } = await supabase
       .from('shifts')
@@ -160,20 +189,25 @@ export const SupabaseService = {
       .select();
 
     if (error) {
-      console.error('Error creating shifts (bulk):', error);
+      console.error('Error creating shifts (bulk):', error.message);
       return [];
     }
     return data || [];
   },
 
   async updateShift(id: string, updates: Partial<Shift>): Promise<boolean> {
+    console.log('[DB] Updating shift:', id, updates);
+
+    // Clean the object: Remove 'profile' as it's not a DB column
+    const { profile, ...cleanUpdates } = updates as any;
+
     const { error } = await supabase
       .from('shifts')
-      .update(updates)
+      .update(cleanUpdates)
       .eq('id', id);
 
     if (error) {
-      console.error('Error updating shift:', error);
+      console.error('Error updating shift:', error.message);
       return false;
     }
     return true;
@@ -265,6 +299,28 @@ export const SupabaseService = {
       return null;
     }
     return data;
+  },
+
+  async createTimeEntries(entries: Omit<TimeEntry, 'id'>[]): Promise<TimeEntry[]> {
+    if (entries.length === 0) return [];
+    console.log(`Bulk creating ${entries.length} time entries...`);
+
+    const entriesWithOrg = entries.map(e => ({
+      ...e,
+      id: (e as any).id || crypto.randomUUID(),
+      organization_id: e.organization_id || ORG_ID
+    }));
+
+    const { data, error } = await supabase
+      .from('time_entries')
+      .insert(entriesWithOrg)
+      .select();
+
+    if (error) {
+      console.error('Error creating time entries (bulk):', error.message);
+      return [];
+    }
+    return data || [];
   },
 
   async updateTimeEntry(id: string, updates: Partial<TimeEntry>): Promise<boolean> {

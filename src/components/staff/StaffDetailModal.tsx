@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, User, Clock, Save, Trash2, Shield, DollarSign, Mail, Briefcase } from 'lucide-react';
+import { X, Calendar, User, Clock, Save, Trash2, Shield, DollarSign, Mail, Briefcase, FileText, Upload, CheckCircle } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { Profile, ScheduleConfig } from '../../types';
+import { RestorationService } from '../../services/restoration';
 import AnalogTimePicker from '../ui/AnalogTimePicker';
 import CustomDatePicker from '../ui/CustomDatePicker';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -14,12 +15,15 @@ interface StaffDetailModalProps {
 }
 
 export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onClose, staffId }) => {
-    const { staff, updateStaff, addStaff, currentUser, generateShiftsFromPattern, shifts, clearUserSchedule } = useOpsCenter();
+    const { staff, updateStaff, addStaff, currentUser, generateShiftsFromPattern, shifts, clearUserSchedule, bulkRestoreStaff } = useOpsCenter();
     const [activeTab, setActiveTab] = useState<'profile' | 'schedule' | 'shifts'>('profile');
-
     const [isSaving, setIsSaving] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
     const [showOffboarding, setShowOffboarding] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [importSuccess, setImportSuccess] = useState<string | null>(null);
+    const [bulkRecords, setBulkRecords] = useState<any[]>([]);
+    const [isProcessingBulk, setIsProcessingBulk] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState<Partial<Profile>>({});
@@ -82,6 +86,71 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
     }, [isOpen, staffId, staff]);
 
     if (!isOpen) return null;
+
+    const handleFileDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+
+        const items = Array.from(e.dataTransfer.items);
+        if (items.length === 0) return;
+
+        setIsProcessingBulk(true);
+        const collectedFiles: { name: string, fullPath: string, content: string }[] = [];
+
+        const scanEntry = async (entry: any, path: string = '') => {
+            if (entry.isFile) {
+                const file = await new Promise<File>((resolve) => entry.file(resolve));
+                if (file.name.toLowerCase().endsWith('.zip')) {
+                    const zipResults = await RestorationService.parseZipArchive(file);
+                    setBulkRecords(prev => [...prev, ...zipResults]);
+                } else if (file.name.toLowerCase().endsWith('.csv')) {
+                    const text = await file.text();
+                    collectedFiles.push({
+                        name: file.name,
+                        fullPath: `${path}${file.name}`,
+                        content: text
+                    });
+                }
+            } else if (entry.isDirectory) {
+                const reader = entry.createReader();
+                const entries = await new Promise<any[]>((resolve) => reader.readEntries(resolve));
+                for (const child of entries) {
+                    await scanEntry(child, `${path}${entry.name}/`);
+                }
+            }
+        };
+
+        for (const item of items) {
+            const entry = item.webkitGetAsEntry();
+            if (entry) {
+                await scanEntry(entry);
+            }
+        }
+
+        // Group the collected flat files
+        if (collectedFiles.length > 0) {
+            const grouped = RestorationService.groupBulkRecords(collectedFiles);
+            if (grouped.length > 0) {
+                // If it's just one profile, auto-fill the form
+                if (grouped.length === 1 && bulkRecords.length === 0) {
+                    setFormData(prev => ({ ...prev, ...grouped[0].profile }));
+                    setImportSuccess('Profile restored successfully!');
+                    setTimeout(() => setImportSuccess(null), 3000);
+                } else {
+                    // Multi-profile detection
+                    setBulkRecords(prev => [...prev, ...grouped]);
+                }
+            }
+        }
+
+        setIsProcessingBulk(false);
+    };
+
+    const handleBulkRestore = async () => {
+        setIsSaving(true);
+        const { bulkRestoreStaff } = useOpsCenter(); // Note: This is inside the function, might need to move out
+        // Actually, I already have bulkRestoreStaff from useOpsCenter at the top
+    };
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -251,6 +320,38 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                     )}
                     {activeTab === 'profile' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                            {/* Restoration Drop Zone - Only for New Profiles */}
+                            {!staffId && (
+                                <div
+                                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                    onDragLeave={() => setIsDragging(false)}
+                                    onDrop={handleFileDrop}
+                                    className={`relative p-6 border-2 border-dashed rounded-[2rem] transition-all flex flex-col items-center justify-center gap-3 group ${isDragging
+                                        ? 'border-indigo-500 bg-indigo-50 px-8 py-10'
+                                        : 'border-slate-200 bg-slate-50/50 hover:bg-slate-50 hover:border-slate-300'
+                                        }`}
+                                >
+                                    {importSuccess ? (
+                                        <div className="flex flex-col items-center gap-2 animate-bounce">
+                                            <div className="w-12 h-12 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg">
+                                                <CheckCircle size={24} />
+                                            </div>
+                                            <p className="text-sm font-black text-emerald-600">{importSuccess}</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${isDragging ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-200 -translate-y-2' : 'bg-white text-slate-400 border border-slate-100 shadow-sm group-hover:scale-110'}`}>
+                                                <Upload size={28} strokeWidth={2.5} />
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-black text-slate-900 leading-tight">Accidental Deletion?</p>
+                                                <p className="text-xs font-bold text-slate-400 mt-1 max-w-[200px]">Drag and drop your <span className="text-indigo-600">profile CSV</span> here to recover all member info.</p>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Name</label>
@@ -331,6 +432,71 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                             </div>
                         </div>
                     )}
+
+                    {bulkRecords.length > 0 && !staffId && (
+                        <div className="mt-8 p-6 bg-slate-900 rounded-[2rem] text-white animate-in slide-in-from-bottom-6 duration-500 overflow-hidden relative">
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/20 blur-[80px] rounded-full -mr-20 -mt-20"></div>
+
+                            <div className="relative">
+                                <div className="flex items-center justify-between mb-6">
+                                    <div>
+                                        <h3 className="text-xl font-bold tracking-tight">Bulk Restore Detected</h3>
+                                        <p className="text-slate-400 text-sm font-medium mt-1">{bulkRecords.length} staff profiles found in upload</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setBulkRecords([])}
+                                        className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-3 max-h-[200px] overflow-y-auto custom-scrollbar-dark pr-2 mb-6">
+                                    {bulkRecords.map((record, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3.5 bg-white/5 rounded-2xl border border-white/10">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold">
+                                                    {record.profile?.full_name?.charAt(0) || '?'}
+                                                </div>
+                                                <div>
+                                                    <div className="text-sm font-bold">{record.profile?.full_name || 'Unknown Staff'}</div>
+                                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{record.profile?.role || 'Staff'}</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-[10px] font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg">
+                                                {record.shifts?.length || 0} Shifts • {record.timesheets?.length || 0} Entries
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={async () => {
+                                        setIsSaving(true);
+                                        await bulkRestoreStaff(bulkRecords);
+                                        setBulkRecords([]);
+                                        onClose();
+                                    }}
+                                    disabled={isSaving}
+                                    className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black text-sm hover:bg-slate-100 transition-all shadow-xl shadow-white/5 flex items-center justify-center gap-2"
+                                >
+                                    {isSaving ? (
+                                        <>
+                                            <div className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+                                            Restoring Team...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle size={18} />
+                                            Restore All {bulkRecords.length} Staff Members
+                                        </>
+                                    )}
+                                </button>
+                                <p className="text-[10px] text-slate-500 font-bold text-center mt-4 uppercase tracking-[0.2em]">Full Historical Data Migration</p>
+                            </div>
+                        </div>
+                    )}
+
                     {activeTab === 'schedule' && (
                         <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                             {/* Pattern Type Toggle */}
@@ -458,7 +624,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                 {/* Footer */}
                 <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50 backdrop-blur-sm">
                     <div className="flex-1">
-                        {staffId && ['admin', 'owner', 'manager'].includes(currentUser.role) && (
+                        {staffId && staffId !== currentUser.id && staff.find(s => s.id === staffId)?.role === 'staff' && ['admin', 'owner', 'manager'].includes(currentUser.role) && (
                             <button
                                 onClick={() => setShowOffboarding(true)}
                                 className="px-4 py-3.5 text-sm font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-2"
@@ -527,17 +693,19 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                 confirmText="Yes, Clear Schedule"
                 variant="danger"
             />
-            {staffId && (
-                <OffboardingModal
-                    isOpen={showOffboarding}
-                    onClose={() => setShowOffboarding(false)}
-                    staffMembers={[staff.find(s => s.id === staffId)!]}
-                    onSuccess={() => {
-                        setShowOffboarding(false);
-                        onClose(); // Close parent modal too
-                    }}
-                />
-            )}
-        </div>
+            {
+                staffId && (
+                    <OffboardingModal
+                        isOpen={showOffboarding}
+                        onClose={() => setShowOffboarding(false)}
+                        staffMembers={[staff.find(s => s.id === staffId)!]}
+                        onSuccess={() => {
+                            setShowOffboarding(false);
+                            onClose(); // Close parent modal too
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 };

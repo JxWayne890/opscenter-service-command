@@ -176,13 +176,14 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                             <span className="text-xs font-bold">Create Account</span>
                         </button>
 
-                        {/* Join with Invite Code */}
+                        {/* Join with Invite Code - Made More Prominent */}
                         <button
                             onClick={() => setShowJoin(true)}
-                            className="flex flex-col items-center justify-center p-4 rounded-2xl bg-slate-50/50 border border-slate-200 hover:border-slate-300 hover:bg-slate-100 text-slate-700 transition-all group/opt active:scale-[0.98]"
+                            className="flex flex-col items-center justify-center p-4 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-[1.02] transition-all group/opt active:scale-[0.98]"
                         >
-                            <KeyRound size={24} className="mb-2 text-slate-400 group-hover/opt:text-slate-600 group-hover/opt:scale-110 transition-transform" />
+                            <KeyRound size={24} className="mb-2 text-white/90 group-hover/opt:scale-110 transition-transform" />
                             <span className="text-xs font-bold">Have an Invite?</span>
+                            <span className="text-[10px] text-white/70 mt-1">Join your team</span>
                         </button>
                     </div>
                 </div>

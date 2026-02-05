@@ -64,6 +64,8 @@ interface OpsCenterContextType {
     fetchPayStubs: (start: string, end: string) => Promise<void>;
     startBreak: () => Promise<void>;
     endBreak: () => Promise<void>;
+    addTimeEntry: (entry: Omit<TimeEntry, 'id'>) => Promise<void>;
+    bulkRestoreStaff: (restorations: any[]) => Promise<void>;
     authLoading: boolean;
     hasMissingProfile: boolean;
 }
@@ -145,32 +147,47 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     useEffect(() => {
         let isMounted = true;
 
-        // Helper function to load the user profile
-        const loadUserProfile = async (userId: string, email: string) => {
+        // Helper function to load the user profile with retries
+        const loadUserProfile = async (userId: string, email: string, retries = 3) => {
             try {
-                console.log('Fetching user profile...');
+                console.log(`[Auth] Fetching user profile (attempt ${4 - retries}/3)...`);
+
+                // Add a tiny initial delay to allow DB propagation
+                if (retries === 3) await new Promise(resolve => setTimeout(resolve, 500));
+
                 const userProfile = await SupabaseService.getProfileById(userId);
 
                 if (isMounted) {
                     if (userProfile) {
-                        console.log('Profile found:', userProfile.full_name);
+                        console.log('[Auth] Profile found:', userProfile.full_name);
                         setCurrentUser(userProfile);
                         setIsAuthenticated(true);
                         setHasMissingProfile(false);
                         refreshData();
+                        setAuthLoading(false);
+                        return true;
+                    } else if (retries > 0) {
+                        console.warn(`[Auth] Profile not found for ${email}, retrying in 1s...`);
+                        setTimeout(() => loadUserProfile(userId, email, retries - 1), 1000);
+                        return false;
                     } else {
-                        console.warn('No profile found for user:', email);
+                        console.error('[Auth] No profile found after retries for user:', email);
                         setHasMissingProfile(true);
                         setIsAuthenticated(false);
+                        setAuthLoading(false);
+                        return false;
                     }
-                    setAuthLoading(false);
                 }
             } catch (error) {
-                console.error('Error fetching profile:', error);
+                console.error('[Auth] Error fetching profile:', error);
                 if (isMounted) {
-                    setHasMissingProfile(false);
-                    setIsAuthenticated(false);
-                    setAuthLoading(false);
+                    if (retries > 0) {
+                        setTimeout(() => loadUserProfile(userId, email, retries - 1), 1000);
+                    } else {
+                        setHasMissingProfile(true);
+                        setIsAuthenticated(false);
+                        setAuthLoading(false);
+                    }
                 }
             }
         };
@@ -204,6 +221,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
 
             if (event === 'SIGNED_IN' && session?.user) {
+                setAuthLoading(true); // Ensure loading screen shows during profile fetch
                 await loadUserProfile(session.user.id, session.user.email || '');
             } else if (event === 'SIGNED_OUT') {
                 console.log('User signed out');
@@ -610,6 +628,53 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         });
     };
 
+    const addTimeEntry = async (entry: Omit<TimeEntry, 'id'>) => {
+        const newEntry: TimeEntry = {
+            ...entry,
+            id: crypto.randomUUID(),
+            organization_id: entry.organization_id || ORG_ID
+        };
+
+        // Optimistic
+        setTimeEntries(prev => [newEntry, ...prev]);
+
+        // DB
+        const created = await SupabaseService.createTimeEntry(newEntry);
+        if (!created) {
+            setTimeEntries(prev => prev.filter(e => e.id !== newEntry.id));
+            alert('Failed to create time entry.');
+        }
+    };
+
+    const bulkRestoreStaff = async (restorations: any[]) => {
+        console.log('=== BULK RESTORING STAFF ===', restorations.length);
+        setIsLoading(true);
+
+        try {
+            // 1. Create all profiles
+            const profilesToCreate = restorations.map(r => r.profile).filter(Boolean);
+            const createdProfiles = await SupabaseService.createProfiles(profilesToCreate);
+            setStaff(prev => [...prev, ...createdProfiles]);
+
+            // 2. Create all shifts
+            const allShifts = restorations.flatMap(r => r.shifts || []);
+            const createdShifts = await SupabaseService.createShifts(allShifts);
+            setShifts(prev => [...prev, ...createdShifts]);
+
+            // 3. Create all time entries
+            const allTimeEntries = restorations.flatMap(r => r.timesheets || []);
+            const createdTimeEntries = await SupabaseService.createTimeEntries(allTimeEntries);
+            setTimeEntries(prev => [...prev, ...createdTimeEntries]);
+
+            console.log('Bulk restoration complete!');
+        } catch (error) {
+            console.error('Bulk restoration failed:', error);
+            alert('Failed to restore some or all records.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     // ==================== OTHER ACTIONS (Local) ====================
     const submitTimeOff = async (req: TimeOffRequest) => {
         setRequests(prev => [req, ...prev]);
@@ -729,7 +794,9 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             updatePayStubStatus,
             createPayStub,
             startBreak,
-            endBreak
+            endBreak,
+            addTimeEntry,
+            bulkRestoreStaff
         }}>
             {children}
         </OpsCenterContext.Provider>
