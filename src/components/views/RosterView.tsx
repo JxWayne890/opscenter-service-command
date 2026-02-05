@@ -8,6 +8,7 @@ import SectionCard from '../SectionCard';
 import { StaffDetailModal } from '../staff/StaffDetailModal';
 import TimesheetDetailModal from '../timesheet/TimesheetDetailModal';
 import PayrollView from './PayrollView';
+import OffboardingModal from '../staff/OffboardingModal';
 
 const RosterView = () => {
     const { shifts, requests, swaps, currentUser, staff, timeEntries, organization } = useOpsCenter();
@@ -31,6 +32,19 @@ const RosterView = () => {
     const [isStaffModalOpen, setStaffModalOpen] = useState(false);
     const [isTimesheetModalOpen, setTimesheetModalOpen] = useState(false);
     const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+
+    // Bulk Selection State
+    const [selectedStaff, setSelectedStaff] = useState<string[]>([]);
+    const [isBulkOffboarding, setIsBulkOffboarding] = useState(false);
+
+    // Toggle Selection
+    const toggleSelection = (id: string) => {
+        if (selectedStaff.includes(id)) {
+            setSelectedStaff(selectedStaff.filter(s => s !== id));
+        } else {
+            setSelectedStaff([...selectedStaff, id]);
+        }
+    };
 
     // Navigation Handler
     const { navigatedUser, setNavigatedUser } = useOpsCenter();
@@ -147,7 +161,7 @@ const RosterView = () => {
     });
 
     return (
-        <div className="space-y-6 pb-48 lg:pb-24 min-h-[50vh]">
+        <div className="space-y-6 pb-48 lg:pb-24 min-h-[50vh] relative">
             {/* Toggle Header */}
             <div className="flex flex-col space-y-4 px-1">
                 <div className="flex justify-between items-center">
@@ -255,13 +269,28 @@ const RosterView = () => {
 
                             // Check if currently clocked in (active entry with no clock out)
                             const isClockedIn = userEntries.some(te => !te.clock_out && te.status === 'active');
+                            const isSelected = selectedStaff.includes(user.id);
 
                             return (
                                 <div
                                     key={user.id}
-                                    className="bg-white border border-slate-100 rounded-2xl p-5 hover:shadow-lg hover:border-indigo-100 transition-all cursor-pointer group"
-                                    onClick={() => handleOpenStaffModal(user.id)}
+                                    className={`relative bg-white border rounded-2xl p-5 transition-all cursor-pointer group ${isSelected ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/10' : 'border-slate-100 hover:shadow-lg hover:border-indigo-100'}`}
+                                    onClick={() => {
+                                        if (selectedStaff.length > 0) {
+                                            toggleSelection(user.id);
+                                        } else {
+                                            handleOpenStaffModal(user.id);
+                                        }
+                                    }}
                                 >
+                                    {/* Selection Checkbox */}
+                                    <div
+                                        onClick={(e) => { e.stopPropagation(); toggleSelection(user.id); }}
+                                        className={`absolute top-4 right-4 w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all z-10 ${isSelected ? 'bg-indigo-600 border-indigo-600' : 'bg-white border-slate-200 group-hover:border-indigo-300'}`}
+                                    >
+                                        {isSelected && <CheckCircle2 size={14} className="text-white" />}
+                                    </div>
+
                                     <div className="flex items-start gap-4 mb-4">
                                         <div className="relative">
                                             <img
@@ -271,7 +300,7 @@ const RosterView = () => {
                                             />
                                             <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white rounded-full ${isClockedIn ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                                         </div>
-                                        <div className="flex-1 min-w-0">
+                                        <div className="flex-1 min-w-0 pr-8">
                                             <h3 className="font-bold text-slate-900 truncate">{user.full_name}</h3>
                                             <p className="text-xs font-medium text-slate-400 uppercase">{user.role}</p>
                                             <div className={`inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-md text-[10px] font-bold uppercase ${isClockedIn ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'
@@ -312,6 +341,7 @@ const RosterView = () => {
                     )}
                 </div>
             )}
+
 
             {/* === TIMESHEETS VIEW === */}
             {viewMode === 'timesheets' && (
@@ -510,7 +540,32 @@ const RosterView = () => {
                 <PayrollView />
             )}
 
-            {/* Modals */}
+            {/* Bulk Action Bar */}
+            {selectedStaff.length > 0 && (
+                <div className="fixed bottom-6 left-6 right-6 lg:left-32 lg:right-auto z-50 animate-bounce-in">
+                    <div className="bg-slate-900 text-white p-3 rounded-2xl shadow-2xl flex items-center gap-4 pr-4 border border-white/10 ring-4 ring-black/5">
+                        <div className="bg-white/10 px-3 py-2 rounded-xl text-sm font-bold flex items-center gap-2">
+                            <CheckCircle2 size={16} />
+                            {selectedStaff.length} Selected
+                        </div>
+                        <div className="h-6 w-px bg-white/10" />
+                        <button
+                            onClick={() => setSelectedStaff([])}
+                            className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={() => setIsBulkOffboarding(true)}
+                            className="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-lg shadow-rose-900/20 active:scale-95 flex items-center gap-2 ml-2"
+                        >
+                            <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                            Delete Selected
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <StaffDetailModal
                 isOpen={isStaffModalOpen}
                 onClose={() => setStaffModalOpen(false)}
@@ -522,6 +577,16 @@ const RosterView = () => {
                 onClose={() => setTimesheetModalOpen(false)}
                 staffId={selectedStaffId || ''}
                 dateRange={getDateRangeObject()}
+            />
+
+            <OffboardingModal
+                isOpen={isBulkOffboarding}
+                onClose={() => setIsBulkOffboarding(false)}
+                staffMembers={staff.filter(s => selectedStaff.includes(s.id))}
+                onSuccess={() => {
+                    setSelectedStaff([]);
+                    setIsBulkOffboarding(false);
+                }}
             />
         </div>
     );

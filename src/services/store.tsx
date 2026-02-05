@@ -143,72 +143,68 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // Listen to Supabase Auth state changes
     useEffect(() => {
-        let timeoutId: NodeJS.Timeout;
         let isMounted = true;
 
-        // Set up auth timeout - if nothing happens in 5 seconds, show login
-        timeoutId = setTimeout(() => {
-            if (isMounted) {
-                console.warn('Auth check timeout - showing login screen');
-                setAuthLoading(false);
-            }
-        }, 5000);
+        // Helper function to load the user profile
+        const loadUserProfile = async (userId: string, email: string) => {
+            try {
+                console.log('Fetching user profile...');
+                const userProfile = await SupabaseService.getProfileById(userId);
 
-        // Subscribe to auth changes - this handles INITIAL_SESSION, SIGNED_IN, SIGNED_OUT
-        const { data: { subscription } } = AuthService.onAuthStateChange(async (event, session) => {
-            console.log('Auth state changed:', event, session?.user?.email);
-
-            // Clear timeout on any auth event
-            if (timeoutId) clearTimeout(timeoutId);
-
-            // Handle the different auth events
-            if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && session?.user) {
-                // We have a session, fetch the profile
-                try {
-                    console.log('Fetching profiles from Supabase...');
-
-                    // Add timeout to profile fetch to prevent infinite loading
-                    const fetchWithTimeout = (promise: Promise<Profile[]>, ms: number) => {
-                        return Promise.race([
-                            promise,
-                            new Promise<Profile[]>((_, reject) =>
-                                setTimeout(() => reject(new Error('Profile fetch timeout')), ms)
-                            )
-                        ]);
-                    };
-
-                    const profiles = await fetchWithTimeout(SupabaseService.getProfiles(), 10000);
-                    console.log('Profiles fetched:', profiles.length);
-
-                    const userProfile = profiles.find(p => p.id === session.user.id);
-
-                    if (isMounted) {
-                        if (userProfile) {
-                            console.log('Profile found:', userProfile.full_name);
-                            setCurrentUser(userProfile);
-                            setIsAuthenticated(true);
-                            setHasMissingProfile(false);
-                            setStaff(profiles);
-                        } else {
-                            console.warn('No profile found for user:', session.user.email);
-                            setHasMissingProfile(true);
-                            setIsAuthenticated(false);
-                        }
-                        setAuthLoading(false);
-                    }
-                } catch (error) {
-                    console.error('Error fetching profile:', error);
-                    if (isMounted) {
+                if (isMounted) {
+                    if (userProfile) {
+                        console.log('Profile found:', userProfile.full_name);
+                        setCurrentUser(userProfile);
+                        setIsAuthenticated(true);
+                        setHasMissingProfile(false);
+                        refreshData();
+                    } else {
+                        console.warn('No profile found for user:', email);
                         setHasMissingProfile(true);
-                        setAuthLoading(false);
+                        setIsAuthenticated(false);
                     }
+                    setAuthLoading(false);
                 }
-            } else if (event === 'INITIAL_SESSION' && !session) {
-                // No session on initial load - show login
-                console.log('No session on initial load');
+            } catch (error) {
+                console.error('Error fetching profile:', error);
+                if (isMounted) {
+                    setHasMissingProfile(false);
+                    setIsAuthenticated(false);
+                    setAuthLoading(false);
+                }
+            }
+        };
+
+        // Step 1: Check for existing session IMMEDIATELY on mount
+        // This is more reliable than waiting for onAuthStateChange
+        const initializeAuth = async () => {
+            console.log('[Auth] Checking for existing session...');
+            const session = await AuthService.getSession();
+
+            if (session?.user) {
+                console.log('[Auth] Found existing session for:', session.user.email);
+                await loadUserProfile(session.user.id, session.user.email || '');
+            } else {
+                console.log('[Auth] No existing session, showing login');
                 if (isMounted) {
                     setAuthLoading(false);
                 }
+            }
+        };
+
+        initializeAuth();
+
+        // Step 2: Subscribe to FUTURE auth changes (sign in, sign out, token refresh)
+        const { data: { subscription } } = AuthService.onAuthStateChange(async (event, session) => {
+            console.log('Auth state changed:', event, session?.user?.email);
+
+            // Skip INITIAL_SESSION since we already handled it above
+            if (event === 'INITIAL_SESSION') {
+                return;
+            }
+
+            if (event === 'SIGNED_IN' && session?.user) {
+                await loadUserProfile(session.user.id, session.user.email || '');
             } else if (event === 'SIGNED_OUT') {
                 console.log('User signed out');
                 if (isMounted) {
@@ -224,7 +220,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         return () => {
             isMounted = false;
-            if (timeoutId) clearTimeout(timeoutId);
             subscription.unsubscribe();
         };
     }, []);

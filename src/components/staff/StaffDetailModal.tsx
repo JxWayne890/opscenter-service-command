@@ -5,6 +5,7 @@ import { Profile, ScheduleConfig } from '../../types';
 import AnalogTimePicker from '../ui/AnalogTimePicker';
 import CustomDatePicker from '../ui/CustomDatePicker';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import OffboardingModal from './OffboardingModal';
 
 interface StaffDetailModalProps {
     isOpen: boolean;
@@ -18,6 +19,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
 
     const [isSaving, setIsSaving] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
+    const [showOffboarding, setShowOffboarding] = useState(false);
 
     // Form State
     const [formData, setFormData] = useState<Partial<Profile>>({});
@@ -171,8 +173,8 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
                                 className={`flex-1 py-3 text-xs font-bold uppercase tracking-wide rounded-xl transition-all flex items-center justify-center gap-2 ${activeTab === tab.id
-                                        ? 'bg-white text-indigo-600 shadow-md transform scale-[1.02]'
-                                        : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
+                                    ? 'bg-white text-indigo-600 shadow-md transform scale-[1.02]'
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-slate-200/50'
                                     }`}
                             >
                                 <tab.icon size={16} />
@@ -455,6 +457,17 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
 
                 {/* Footer */}
                 <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50 backdrop-blur-sm">
+                    <div className="flex-1">
+                        {staffId && ['admin', 'owner', 'manager'].includes(currentUser.role) && (
+                            <button
+                                onClick={() => setShowOffboarding(true)}
+                                className="px-4 py-3.5 text-sm font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-2"
+                            >
+                                <Trash2 size={18} />
+                                Delete Staff
+                            </button>
+                        )}
+                    </div>
                     <button
                         onClick={onClose}
                         className="px-6 py-3.5 text-sm font-bold text-slate-500 hover:text-slate-700 transition-colors"
@@ -514,6 +527,17 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                 confirmText="Yes, Clear Schedule"
                 variant="danger"
             />
+            {staffId && (
+                <OffboardingModal
+                    isOpen={showOffboarding}
+                    onClose={() => setShowOffboarding(false)}
+                    staffMembers={[staff.find(s => s.id === staffId)!]}
+                    onSuccess={() => {
+                        setShowOffboarding(false);
+                        onClose(); // Close parent modal too
+                    }}
+                />
+            )}
         </div>
     );
 };

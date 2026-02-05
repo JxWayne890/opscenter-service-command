@@ -21,6 +21,58 @@ export const SupabaseService = {
     return data || [];
   },
 
+  async getProfileById(userId: string): Promise<Profile | null> {
+    console.log('[DEBUG] getProfileById called with:', userId);
+
+    // Try raw fetch to bypass Supabase client
+    // Get URL and key from the supabase client's internal config
+    const supabaseUrl = (supabase as any).supabaseUrl;
+    const supabaseKey = (supabase as any).supabaseKey;
+
+    const url = `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`;
+    console.log('[DEBUG] Fetching from URL:', url);
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      console.log('[DEBUG] Response status:', response.status);
+
+      if (!response.ok) {
+        console.error('[DEBUG] Response error:', response.statusText);
+        return null;
+      }
+
+      const data = await response.json();
+      console.log('[DEBUG] Response data:', data);
+
+      if (data && data.length > 0) {
+        return data[0] as Profile;
+      }
+      return null;
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.error('[DEBUG] Request timed out after 5 seconds');
+      } else {
+        console.error('[DEBUG] Fetch error:', err);
+      }
+      return null;
+    }
+  },
+
   async createProfile(profile: Omit<Profile, 'created_at' | 'updated_at'>): Promise<Profile | null> {
     console.log('Creating profile in Supabase:', profile.full_name);
 

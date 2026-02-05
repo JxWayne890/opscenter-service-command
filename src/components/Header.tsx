@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, Search, MapPin, ChevronDown } from 'lucide-react';
+import { Bell, MapPin, ChevronDown } from 'lucide-react';
 import { Organization, Profile } from '../types';
 import { useOpsCenter } from '../services/store';
 
@@ -24,15 +24,7 @@ const Header: React.FC<HeaderProps> = ({ user, org }) => {
                     <ChevronDown size={14} className="opacity-50 group-hover:opacity-100 transition-opacity" />
                 </div>
 
-                {/* Search Bar - Glass */}
-                <div className="hidden lg:flex items-center relative">
-                    <Search size={16} className="absolute left-4 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Search anything..."
-                        className="w-64 py-2.5 pl-10 pr-4 bg-white/40 border border-white/40 hover:bg-white/60 focus:bg-white/80 rounded-2xl text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue/20 transition-all shadow-sm"
-                    />
-                </div>
+                {/* Search Bar - Removed */}
             </div>
 
             {/* Right Section: Actions & Profile */}
