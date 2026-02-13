@@ -1,7 +1,8 @@
 import React, { useMemo, useEffect } from 'react';
-import { X, Printer, CheckCircle2, AlertTriangle, Clock, Calendar, DollarSign, ArrowRight, Lock } from 'lucide-react';
+import { X, Printer, CheckCircle2, AlertTriangle, Clock, Calendar, DollarSign, ArrowRight, Lock, Coffee, Play, StopCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Shift, TimeEntry, Profile } from '../../types';
 import { useOpsCenter } from '../../services/store';
+import { TimeMath } from '../../utils/timeMath';
 
 interface TimesheetDetailModalProps {
     isOpen: boolean;
@@ -12,6 +13,17 @@ interface TimesheetDetailModalProps {
 
 const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onClose, staffId, dateRange }) => {
     const { staff, shifts, timeEntries, approveShifts, payStubs, fetchPayStubs, currentUser } = useOpsCenter();
+    const [expandedEntryIds, setExpandedEntryIds] = React.useState<Set<string>>(new Set());
+
+    const toggleExpand = (id: string) => {
+        const newSet = new Set(expandedEntryIds);
+        if (newSet.has(id)) {
+            newSet.delete(id);
+        } else {
+            newSet.add(id);
+        }
+        setExpandedEntryIds(newSet);
+    };
 
     // Fetch stubs for this period when opening
     useEffect(() => {
@@ -47,27 +59,33 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
         const approvedHours = periodData
             .filter(e => e.status === 'approved')
             .reduce((sum, e) => {
-                const end = e.clock_out ? new Date(e.clock_out).getTime() : new Date().getTime();
-                const start = new Date(e.clock_in).getTime();
-                const breakMins = e.total_break_minutes || 0;
-                return sum + ((end - start) / (1000 * 60 * 60)) - (breakMins / 60);
+                const netMS = TimeMath.calculateNetDurationMS(
+                    e.clock_in,
+                    e.clock_out || new Date(),
+                    e.total_break_minutes
+                );
+                return sum + TimeMath.msToDecimalHours(netMS);
             }, 0);
 
         const pendingHours = periodData
             .filter(e => e.status === 'pending_approval' || e.status === 'active')
             .reduce((sum, e) => {
-                const end = e.clock_out ? new Date(e.clock_out).getTime() : new Date().getTime();
-                const start = new Date(e.clock_in).getTime();
-                const breakMins = e.total_break_minutes || 0;
-                return sum + ((end - start) / (1000 * 60 * 60)) - (breakMins / 60);
+                const netMS = TimeMath.calculateNetDurationMS(
+                    e.clock_in,
+                    e.clock_out || new Date(),
+                    e.total_break_minutes
+                );
+                return sum + TimeMath.msToDecimalHours(netMS);
             }, 0);
 
         const clockedHours = periodData
             .reduce((sum, e) => {
-                const end = e.clock_out ? new Date(e.clock_out).getTime() : new Date().getTime();
-                const start = new Date(e.clock_in).getTime();
-                const breakMins = e.total_break_minutes || 0;
-                return sum + ((end - start) / (1000 * 60 * 60)) - (breakMins / 60);
+                const netMS = TimeMath.calculateNetDurationMS(
+                    e.clock_in,
+                    e.clock_out || new Date(),
+                    e.total_break_minutes
+                );
+                return sum + TimeMath.msToDecimalHours(netMS);
             }, 0);
 
         const hourlyRate = staffMember?.hourly_rate || 25.00;
@@ -269,9 +287,9 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                         <tbody>
                             <tr>
                                 <td>Regular Pay</td>
-                                <td class="text-right">$${stats.hourlyRate.toFixed(2)}</td>
-                                <td class="text-right">${stats.approvedHours.toFixed(2)}</td>
-                                <td class="text-right font-bold">$${stats.estPay.toFixed(2)}</td>
+                                <td class="text-right">${TimeMath.formatCurrency(stats.hourlyRate)}</td>
+                                <td class="text-right">${TimeMath.formatDecimalHours(stats.approvedHours)}</td>
+                                <td class="text-right font-bold">${TimeMath.formatCurrency(stats.estPay)}</td>
                             </tr>
                             <!-- Placeholders for other earnings -->
                         </tbody>
@@ -293,8 +311,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                             ${periodData.filter(e => e.status === 'approved').map(entry => {
             const start = new Date(entry.clock_in);
             const end = entry.clock_out ? new Date(entry.clock_out) : null;
-            const breakMins = entry.total_break_minutes || 0;
-            const duration = end ? ((end.getTime() - start.getTime()) / (1000 * 60 * 60)) - (breakMins / 60) : 0;
+            const netMS = TimeMath.calculateNetDurationMS(entry.clock_in, entry.clock_out || new Date(), entry.total_break_minutes);
 
             return `
                                     <tr>
@@ -305,7 +322,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                             ${end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'ACTIVE'}
                                         </td>
                                         <td class="text-right">
-                                            ${duration.toFixed(2)}
+                                            ${TimeMath.formatDuration(netMS)}
                                         </td>
                                     </tr>
                                 `;
@@ -317,15 +334,15 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                 <div class="summary-box">
                     <div class="total-group">
                         <div class="total-label">Approved Hours</div>
-                        <div class="total-value" style="font-size: 18px">${stats.approvedHours.toFixed(2)}</div>
+                        <div class="total-value" style="font-size: 18px">${TimeMath.formatDecimalHours(stats.approvedHours)}</div>
                     </div>
                     <div class="total-group">
                         <div class="total-label">Total Clocked</div>
-                        <div class="total-value" style="font-size: 18px">${stats.clockedHours.toFixed(2)}</div>
+                        <div class="total-value" style="font-size: 18px">${TimeMath.formatDecimalHours(stats.clockedHours)}</div>
                     </div>
                     <div class="total-group">
                         <div class="total-label">Net Pay</div>
-                        <div class="total-value">$${stats.estPay.toFixed(2)}</div>
+                        <div class="total-value">${TimeMath.formatCurrency(stats.estPay)}</div>
                     </div>
                 </div>
 
@@ -430,20 +447,20 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-slate-500 text-sm font-medium">Hourly Rate</span>
-                                        <span className="text-slate-900 font-bold">${stats.hourlyRate.toFixed(2)}/hr</span>
+                                        <span className="text-slate-900 font-bold">{TimeMath.formatCurrency(stats.hourlyRate)}/hr</span>
                                     </div>
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-slate-500 text-sm font-medium">Approved Hours</span>
-                                        <span className="text-slate-900 font-bold">{stats.approvedHours.toFixed(2)} hrs</span>
+                                        <span className="text-slate-900 font-bold">{TimeMath.formatDecimalHours(stats.approvedHours)}</span>
                                     </div>
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-slate-500 text-sm font-medium">Pending Hours</span>
-                                        <span className="text-amber-600 font-bold">{stats.pendingHours.toFixed(2)} hrs</span>
+                                        <span className="text-amber-600 font-bold">{TimeMath.formatDecimalHours(stats.pendingHours)}</span>
                                     </div>
                                     <div className="h-px bg-indigo-200 my-2" />
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-indigo-900 font-bold text-lg">Gross Pay</span>
-                                        <span className="text-indigo-600 font-bold text-2xl">${stats.estPay.toFixed(2)}</span>
+                                        <span className="text-indigo-600 font-bold text-2xl">{TimeMath.formatCurrency(stats.estPay)}</span>
                                     </div>
                                 </div>
                             )}
@@ -459,16 +476,16 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-slate-500 text-sm font-medium">Approved Hours</span>
-                                        <span className="text-emerald-600 font-bold">{stats.approvedHours.toFixed(2)} hrs</span>
+                                        <span className="text-emerald-600 font-bold">{TimeMath.formatDecimalHours(stats.approvedHours)}</span>
                                     </div>
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-slate-500 text-sm font-medium">Pending Hours</span>
-                                        <span className="text-amber-600 font-bold">{stats.pendingHours.toFixed(2)} hrs</span>
+                                        <span className="text-amber-600 font-bold">{TimeMath.formatDecimalHours(stats.pendingHours)}</span>
                                     </div>
                                     <div className="h-px bg-slate-100 my-1" />
                                     <div className="flex justify-between items-baseline">
                                         <span className="text-slate-900 text-sm font-bold">Total Clocked</span>
-                                        <span className="text-slate-900 font-black">{stats.clockedHours.toFixed(2)} hrs</span>
+                                        <span className="text-slate-900 font-black">{TimeMath.formatDecimalHours(stats.clockedHours)}</span>
                                     </div>
                                     <p className="text-[10px] text-slate-400 italic leading-tight mt-2">
                                         Only approved hours are converted to pay. Pending hours are awaiting manager review.
@@ -521,41 +538,147 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                 const clockOutDate = entry.clock_out ? new Date(entry.clock_out) : null;
 
                                 return (
-                                    <div key={entry.id} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-shadow group">
-                                        <div className="flex items-center gap-4">
-                                            <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center font-bold border ${isApproved ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
-                                                <span className="text-xs uppercase">{clockInDate.toLocaleDateString('en-US', { month: 'short' })}</span>
-                                                <span className="text-lg">{clockInDate.getDate()}</span>
+                                    <div
+                                        key={entry.id}
+                                        className={`bg-white border rounded-xl transition-all cursor-pointer group ${expandedEntryIds.has(entry.id) ? 'border-indigo-200 shadow-md ring-1 ring-indigo-50' : 'border-slate-200 hover:border-indigo-300 hover:shadow-sm'}`}
+                                        onClick={() => toggleExpand(entry.id)}
+                                    >
+                                        {/* Header: Date & Status - CLICK TO TOGGLE */}
+                                        <div className="p-4 flex items-center justify-between">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center font-bold border ${isApproved ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-slate-50 border-slate-100 text-slate-500'}`}>
+                                                    <span className="text-xs uppercase">{clockInDate.toLocaleDateString('en-US', { month: 'short' })}</span>
+                                                    <span className="text-lg">{clockInDate.getDate()}</span>
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-slate-900 font-bold">Punch Entry</span>
+                                                        {pending && <span className="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">PENDING</span>}
+                                                        {isApproved && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 size={10} /> APPROVED</span>}
+                                                        {entry.status === 'active' && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
+                                                    </div>
+
+                                                    {/* Summary Line (Visible when collapsed OR expanded) */}
+                                                    <div className="flex items-center gap-4 mt-1 text-slate-500 text-xs font-medium">
+                                                        <span className="flex items-center gap-1">
+                                                            <Clock size={12} />
+                                                            {clockInDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - {clockOutDate ? clockOutDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '...'}
+                                                        </span>
+                                                        <span>•</span>
+                                                        <span className="text-slate-700 font-bold">
+                                                            {clockOutDate ? TimeMath.formatDuration(TimeMath.calculateNetDurationMS(entry.clock_in, entry.clock_out!, entry.total_break_minutes)) : (entry.status === 'active' ? '...' : '0h 0m')}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-slate-900 font-bold">Punch Entry</span>
-                                                    {pending && <span className="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">PENDING</span>}
-                                                    {isApproved && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 size={10} /> APPROVED</span>}
-                                                    {entry.status === 'active' && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
-                                                </div>
-                                                <div className="flex items-center gap-4 mt-1 text-slate-500 text-xs font-medium">
-                                                    <span className="flex items-center gap-1">
-                                                        <Clock size={12} />
-                                                        {clockInDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - {clockOutDate ? clockOutDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '...'}
-                                                    </span>
-                                                    <span>•</span>
-                                                    <span>
-                                                        {clockOutDate ? (((clockOutDate.getTime() - clockInDate.getTime()) / (1000 * 60 * 60)) - ((entry.total_break_minutes || 0) / 60)).toFixed(1) : (entry.status === 'active' ? '...' : '0.0')} hrs
-                                                    </span>
-                                                </div>
+
+                                            <div className="flex items-center gap-3">
+                                                {isManagerUser && pending && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            updateTimeEntry(entry.id, { status: 'approved' });
+                                                        }}
+                                                        className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow hover:bg-indigo-700 transition-colors z-10 relative"
+                                                    >
+                                                        Approve
+                                                    </button>
+                                                )}
+                                                <button className={`p-2 rounded-full hover:bg-slate-100 transition-transform duration-200 ${expandedEntryIds.has(entry.id) ? 'rotate-180 bg-slate-50' : ''}`}>
+                                                    <ChevronDown size={20} className="text-slate-400" />
+                                                </button>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-center gap-3">
-                                            {isManagerUser && pending && (
-                                                <button
-                                                    onClick={() => updateTimeEntry(entry.id, { status: 'approved' })}
-                                                    className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-bold shadow hover:bg-indigo-700 transition-colors"
-                                                >
-                                                    Approve
-                                                </button>
-                                            )}
+                                        {/* Timeline (Collapsible) */}
+                                        <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${expandedEntryIds.has(entry.id) ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                                            <div className="overflow-hidden">
+                                                <div className="px-6 pb-6 pt-2 border-t border-slate-100">
+                                                    <div className="pl-2 pt-4">
+                                                        {/* Clock In */}
+                                                        <div className="relative pl-8 pb-6 border-l border-slate-200">
+                                                            <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-indigo-50 border-2 border-indigo-500 flex items-center justify-center">
+                                                                <Play size={10} className="text-indigo-600 ml-0.5" />
+                                                            </div>
+                                                            <div className="flex justify-between items-start">
+                                                                <div>
+                                                                    <p className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-1">Clock In</p>
+                                                                    <p className="text-sm font-mono text-slate-600">{clockInDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Breaks */}
+                                                        {entry.breaks && entry.breaks.map((brk, idx) => (
+                                                            <React.Fragment key={idx}>
+                                                                <div className="relative pl-8 pb-6 border-l border-slate-200">
+                                                                    <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-amber-50 border-2 border-amber-400 flex items-center justify-center">
+                                                                        <Coffee size={10} className="text-amber-600" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-1">Start Break</p>
+                                                                        <p className="text-sm font-mono text-slate-600">{new Date(brk.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+                                                                    </div>
+                                                                </div>
+                                                                {brk.end && (
+                                                                    <div className="relative pl-8 pb-6 border-l border-slate-200">
+                                                                        <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-amber-50 border-2 border-amber-400 flex items-center justify-center">
+                                                                            <Play size={10} className="text-amber-600 ml-0.5" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-1">End Break</p>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <p className="text-sm font-mono text-slate-600">{new Date(brk.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+                                                                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                                                                                    {TimeMath.formatMinutes(brk.duration || 0)}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </React.Fragment>
+                                                        ))}
+
+                                                        {/* Fallback for legacy breaks without detailed logs */}
+                                                        {(!entry.breaks || entry.breaks.length === 0) && (entry.total_break_minutes || 0) > 0 && (
+                                                            <div className="relative pl-8 pb-6 border-l border-slate-200">
+                                                                <div className="absolute -left-3 top-0 w-6 h-6 rounded-full bg-amber-50 border-2 border-amber-200 flex items-center justify-center">
+                                                                    <Coffee size={10} className="text-amber-400" />
+                                                                </div>
+                                                                <div>
+                                                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Break (Summary)</p>
+                                                                    <p className="text-sm font-medium text-slate-500">{TimeMath.formatMinutes(entry.total_break_minutes)} total</p>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Clock Out */}
+                                                        <div className="relative pl-8">
+                                                            <div className={`absolute -left-3 top-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${clockOutDate ? 'bg-slate-50 border-slate-400' : 'bg-emerald-50 border-emerald-500 animate-pulse'}`}>
+                                                                {clockOutDate ? <StopCircle size={10} className="text-slate-600" /> : <Clock size={10} className="text-emerald-600" />}
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-1">
+                                                                    {clockOutDate ? 'Clock Out' : 'Currently Active'}
+                                                                </p>
+                                                                {clockOutDate ? (
+                                                                    <div className="flex items-center gap-2">
+                                                                        <p className="text-sm font-mono text-slate-600">{clockOutDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+                                                                        <div className="flex items-center gap-1 ml-2 pl-3 border-l border-slate-200">
+                                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Worked:</span>
+                                                                            <span className="text-sm font-black text-indigo-600">
+                                                                                {TimeMath.formatDuration(TimeMath.calculateNetDurationMS(entry.clock_in, entry.clock_out!, entry.total_break_minutes))}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <span className="text-sm font-bold text-emerald-600">Tracking...</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 );

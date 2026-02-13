@@ -35,7 +35,7 @@ const STAFF_PERMISSIONS: Permission[] = [
 
 export const hasPermission = (user: Profile | null, permission: Permission): boolean => {
     if (!user) return false;
-    if (user.role === 'owner' || user.role === 'manager' || user.role === 'admin') {
+    if (user.role === 'owner' || user.role === 'manager') {
         return MANAGER_PERMISSIONS.includes(permission);
     }
     return STAFF_PERMISSIONS.includes(permission);
@@ -43,7 +43,7 @@ export const hasPermission = (user: Profile | null, permission: Permission): boo
 
 export const isManager = (user: Profile | null): boolean => {
     if (!user) return false;
-    return user.role === 'owner' || user.role === 'manager' || user.role === 'admin';
+    return user.role === 'owner' || user.role === 'manager';
 };
 
 export const isStaff = (user: Profile | null): boolean => {

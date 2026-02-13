@@ -159,12 +159,6 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
 
             {/* Modal Content */}
             <div className="relative w-full max-w-lg bg-slate-900 text-white rounded-t-[2rem] sm:rounded-[2rem] overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300 flex flex-col max-h-[90vh] sm:max-h-[700px]">
-                {/* Background Image Layer */}
-                <img
-                    src="https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&q=80&w=600"
-                    className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-overlay"
-                />
-
                 {/* Header */}
                 <div className="relative z-10 px-6 py-4 border-b border-white/10 bg-slate-900/50 backdrop-blur-md flex justify-between items-center shrink-0">
                     <div>
@@ -218,8 +212,8 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
                         >
                             <div
                                 className={`max-w-[85%] p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.role === 'user'
-                                        ? 'bg-indigo-600 text-white rounded-br-sm'
-                                        : 'bg-white/10 backdrop-blur-md text-slate-100 rounded-bl-sm border border-white/5'
+                                    ? 'bg-indigo-600 text-white rounded-br-sm'
+                                    : 'bg-white/10 backdrop-blur-md text-slate-100 rounded-bl-sm border border-white/5'
                                     }`}
                             >
                                 {msg.content}

@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useOpsCenter } from '../../services/store';
+import { TimeMath } from '../../utils/timeMath';
 import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, FileText, Send, Lock } from 'lucide-react';
 import TimesheetDetailModal from '../timesheet/TimesheetDetailModal';
 
@@ -134,11 +135,12 @@ const PayrollView = () => {
             periodEntries.forEach(te => {
                 if (!te.clock_out && te.status !== 'active') return;
 
-                const start = new Date(te.clock_in).getTime();
-                const end = te.clock_out ? new Date(te.clock_out).getTime() : new Date().getTime();
-                const breakMins = te.total_break_minutes || 0;
-
-                totalHours += ((end - start) / (1000 * 60 * 60)) - (breakMins / 60);
+                const netMS = TimeMath.calculateNetDurationMS(
+                    te.clock_in,
+                    te.clock_out || new Date(),
+                    te.total_break_minutes
+                );
+                totalHours += TimeMath.msToDecimalHours(netMS);
             });
 
             const rate = employee.hourly_rate || 0;
@@ -303,13 +305,13 @@ const PayrollView = () => {
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                     <div className="text-slate-500 text-xs uppercase font-bold mb-1">Total Payroll</div>
                     <div className="text-2xl font-bold text-slate-900">
-                        ${payrollData.reduce((sum, d) => sum + d.estPay, 0).toFixed(2)}
+                        {TimeMath.formatCurrency(payrollData.reduce((sum, d) => sum + d.estPay, 0))}
                     </div>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                     <div className="text-slate-500 text-xs uppercase font-bold mb-1">Total Hours</div>
                     <div className="text-2xl font-bold text-slate-900">
-                        {payrollData.reduce((sum, d) => sum + d.totalHours, 0).toFixed(0)} hrs
+                        {TimeMath.formatDecimalHours(payrollData.reduce((sum, d) => sum + d.totalHours, 0))}
                     </div>
                 </div>
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
@@ -384,8 +386,8 @@ const PayrollView = () => {
                                         </div>
                                     </td>
                                     <td className="p-4 text-slate-500 uppercase text-[10px] font-bold">{employee.role}</td>
-                                    <td className="p-4 text-right font-medium">{totalHours.toFixed(2)}</td>
-                                    <td className="p-4 text-right font-bold text-slate-900">${estPay.toFixed(2)}</td>
+                                    <td className="p-4 text-right font-medium">{TimeMath.formatDecimalHours(totalHours)}</td>
+                                    <td className="p-4 text-right font-bold text-slate-900">{TimeMath.formatCurrency(estPay)}</td>
                                     <td className="p-4">
                                         {status === 'released' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><CheckCircle2 size={12} /> Released</span>}
                                         {status === 'approved' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700"><CheckCircle2 size={12} /> Approved</span>}

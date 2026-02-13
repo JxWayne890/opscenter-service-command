@@ -42,10 +42,9 @@ const JoinScreen: React.FC<JoinScreenProps> = ({ onJoinSuccess, onBackToLogin })
             if (ROLE_CODES[upperCode]) {
                 const { role, orgId } = ROLE_CODES[upperCode];
 
-                // Handle client code - show "coming soon" message
+                // Handle client code - Redirect to Portal
                 if (role === 'client') {
-                    setError('Client portal is coming soon! Please check back later.');
-                    setIsLoading(false);
+                    window.location.href = '/portal/login';
                     return;
                 }
 

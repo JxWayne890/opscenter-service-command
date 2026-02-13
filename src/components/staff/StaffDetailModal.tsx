@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, User, Clock, Save, Trash2, Shield, DollarSign, Mail, Briefcase, FileText, Upload, CheckCircle } from 'lucide-react';
+import { X, Calendar, User, Users, Clock, Save, Trash2, Shield, DollarSign, Mail, Briefcase, FileText, Upload, CheckCircle } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { Profile, ScheduleConfig } from '../../types';
 import { RestorationService } from '../../services/restoration';
@@ -27,6 +27,8 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
 
     // Form State
     const [formData, setFormData] = useState<Partial<Profile>>({});
+    const [isRoleOpen, setIsRoleOpen] = useState(false);
+    const [isStatusOpen, setIsStatusOpen] = useState(false);
     const [scheduleConfig, setScheduleConfig] = useState<ScheduleConfig>({
         type: 'fixed',
         fixed_days: [1, 2, 3, 4, 5], // Default M-F
@@ -384,20 +386,47 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                             <div className="grid grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Role</label>
-                                    <div className="relative group">
-                                        <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                                        <select
-                                            value={formData.role || 'staff'}
-                                            onChange={e => setFormData({ ...formData, role: e.target.value as any })}
-                                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50/50 border border-slate-200/60 rounded-xl text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none"
+                                    <div className="relative">
+                                        <div
+                                            onClick={() => setIsRoleOpen(!isRoleOpen)}
+                                            className={`flex items-center justify-between w-full pl-12 pr-4 py-3.5 bg-slate-50/50 border border-slate-200/60 rounded-xl text-sm font-bold text-slate-700 cursor-pointer hover:bg-white hover:border-indigo-300 transition-all ${isRoleOpen ? 'ring-4 ring-indigo-500/10 border-indigo-500 bg-white' : ''}`}
                                         >
-                                            <option value="staff">Staff</option>
-                                            <option value="manager">Manager</option>
-                                            <option value="owner">Owner</option>
-                                        </select>
+                                            <Shield className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                            <span className="capitalize">{formData.role || 'staff'}</span>
+                                            <X size={16} className={`text-slate-400 transition-transform duration-300 ${isRoleOpen ? 'rotate-0' : 'rotate-45'}`} />
+                                        </div>
+
+                                        {isRoleOpen && (
+                                            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                                                {[
+                                                    { id: 'owner', label: 'Owner', icon: Shield, color: 'text-purple-600', bg: 'bg-purple-50' },
+                                                    { id: 'manager', label: 'Manager', icon: User, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+                                                    { id: 'staff', label: 'Staff member', icon: Users, color: 'text-emerald-600', bg: 'bg-emerald-50' }
+                                                ].map((role) => (
+                                                    <div
+                                                        key={role.id}
+                                                        onClick={() => {
+                                                            setFormData({ ...formData, role: role.id as any });
+                                                            setIsRoleOpen(false);
+                                                        }}
+                                                        className={`flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${formData.role === role.id ? 'bg-slate-50' : ''}`}
+                                                    >
+                                                        <div className={`p-2 rounded-lg ${role.bg} ${role.color}`}>
+                                                            <role.icon size={16} />
+                                                        </div>
+                                                        <div className="flex-1">
+                                                            <p className="text-sm font-bold text-slate-900">{role.label}</p>
+                                                        </div>
+                                                        {formData.role === role.id && (
+                                                            <CheckCircle size={16} className="text-indigo-600" />
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
-                                {(['admin', 'owner', 'manager'].includes(currentUser.role) || currentUser.id === staffId) && (
+                                {(['owner', 'manager'].includes(currentUser.role) || currentUser.id === staffId) && (
                                     <div>
                                         <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Hourly Rate ($)</label>
                                         <div className="relative group">
@@ -407,7 +436,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                                                 value={formData.hourly_rate || ''}
                                                 onChange={e => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
                                                 className="w-full pl-12 pr-4 py-3.5 bg-slate-50/50 border border-slate-200/60 rounded-xl text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
-                                                disabled={!['admin', 'owner', 'manager'].includes(currentUser.role)}
+                                                disabled={!['owner', 'manager'].includes(currentUser.role)}
                                                 placeholder="0.00"
                                             />
                                         </div>
@@ -417,17 +446,45 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
 
                             <div>
                                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
-                                <div className="relative group">
-                                    <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-                                    <select
-                                        value={formData.status || 'active'}
-                                        onChange={e => setFormData({ ...formData, status: e.target.value as any })}
-                                        className="w-full pl-12 pr-4 py-3.5 bg-slate-50/50 border border-slate-200/60 rounded-xl text-sm font-bold text-slate-700 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all appearance-none"
+                                <div className="relative">
+                                    <div
+                                        onClick={() => setIsStatusOpen(!isStatusOpen)}
+                                        className={`flex items-center justify-between w-full pl-12 pr-4 py-3.5 bg-slate-50/50 border border-slate-200/60 rounded-xl text-sm font-bold text-slate-700 cursor-pointer hover:bg-white hover:border-indigo-300 transition-all ${isStatusOpen ? 'ring-4 ring-indigo-500/10 border-indigo-500 bg-white' : ''}`}
                                     >
-                                        <option value="active">Active</option>
-                                        <option value="inactive">Inactive</option>
-                                        <option value="pending">Pending</option>
-                                    </select>
+                                        <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                                        <div className="flex items-center gap-2 capitalize">
+                                            <div className={`w-2 h-2 rounded-full ${formData.status === 'active' ? 'bg-emerald-500' : formData.status === 'pending' ? 'bg-amber-500' : 'bg-slate-400'}`} />
+                                            {formData.status || 'active'}
+                                        </div>
+                                        <X size={16} className={`text-slate-400 transition-transform duration-300 ${isStatusOpen ? 'rotate-0' : 'rotate-45'}`} />
+                                    </div>
+
+                                    {isStatusOpen && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                                            {[
+                                                { id: 'active', label: 'Active', color: 'bg-emerald-500' },
+                                                { id: 'inactive', label: 'Inactive', color: 'bg-slate-400' },
+                                                { id: 'pending', label: 'Pending', color: 'bg-amber-500' }
+                                            ].map((status) => (
+                                                <div
+                                                    key={status.id}
+                                                    onClick={() => {
+                                                        setFormData({ ...formData, status: status.id as any });
+                                                        setIsStatusOpen(false);
+                                                    }}
+                                                    className={`flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer transition-colors ${formData.status === status.id ? 'bg-slate-50' : ''}`}
+                                                >
+                                                    <div className={`w-2.5 h-2.5 rounded-full ${status.color}`} />
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-bold text-slate-900">{status.label}</p>
+                                                    </div>
+                                                    {formData.status === status.id && (
+                                                        <CheckCircle size={16} className="text-indigo-600" />
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -624,7 +681,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                 {/* Footer */}
                 <div className="p-6 border-t border-slate-100 flex justify-end gap-3 bg-slate-50/50 backdrop-blur-sm">
                     <div className="flex-1">
-                        {staffId && staffId !== currentUser.id && staff.find(s => s.id === staffId)?.role === 'staff' && ['admin', 'owner', 'manager'].includes(currentUser.role) && (
+                        {staffId && staffId !== currentUser.id && ['owner', 'manager'].includes(currentUser.role) && (
                             <button
                                 onClick={() => setShowOffboarding(true)}
                                 className="px-4 py-3.5 text-sm font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors flex items-center gap-2"

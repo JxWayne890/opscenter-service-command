@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Users, Filter, Save, Trash2, RefreshCw, Briefcase, Clock, Search, MoreHorizontal } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
+import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
 import { Shift, Profile } from '../../types';
 import SectionCard from '../SectionCard';
@@ -320,7 +321,7 @@ const ScheduleView = () => {
 
                                     <div className="flex items-center gap-4 pt-6 border-t border-white/10">
                                         <div>
-                                            <div className="text-2xl font-bold">{(new Date(myMobileShift.end_time).getTime() - new Date(myMobileShift.start_time).getTime()) / 3600000}h</div>
+                                            <div className="text-2xl font-bold">{TimeMath.formatDecimalHours(TimeMath.msToDecimalHours(new Date(myMobileShift.end_time).getTime() - new Date(myMobileShift.start_time).getTime()))}</div>
                                             <div className="text-[10px] uppercase font-bold text-indigo-200">Duration</div>
                                         </div>
                                         <div className="w-px h-8 bg-white/10"></div>

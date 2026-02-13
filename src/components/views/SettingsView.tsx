@@ -6,16 +6,19 @@ import { UserPlus, Settings, Bell, Shield, LogOut, Copy, CheckCircle, Key, Bankn
 import OffboardingModal from '../staff/OffboardingModal';
 import { Organization } from '../../types';
 
-// Invite Code Card Component
-const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoon = false }: {
+// Invite Code Card Component - Now supports editing for authorized codes
+const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoon = false, onSave }: {
     label: string;
     code: string;
     description: string;
     colorScheme: 'indigo' | 'emerald' | 'amber';
     icon: string;
     comingSoon?: boolean;
+    onSave?: (newCode: string) => void;
 }) => {
     const [copied, setCopied] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+    const [tempCode, setTempCode] = useState(code);
 
     const colorStyles = {
         indigo: {
@@ -49,6 +52,13 @@ const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoo
         setTimeout(() => setCopied(false), 2000);
     };
 
+    const handleSave = () => {
+        if (onSave && tempCode !== code) {
+            onSave(tempCode);
+        }
+        setIsEditing(false);
+    };
+
     return (
         <div className={`relative p-5 rounded-2xl border ${colors.bg} ${colors.border} transition-all hover:shadow-lg`}>
             {comingSoon && (
@@ -56,9 +66,37 @@ const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoo
                     Coming Soon
                 </div>
             )}
-            <div className="text-2xl mb-3">{icon}</div>
+            <div className="flex justify-between items-start">
+                <div className="text-2xl mb-3">{icon}</div>
+                {onSave && !comingSoon && (
+                    <button
+                        onClick={() => setIsEditing(!isEditing)}
+                        className="p-1.5 hover:bg-white/50 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                        title="Edit Code"
+                    >
+                        <Settings size={14} />
+                    </button>
+                )}
+            </div>
+
             <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${colors.subtext}`}>{label}</p>
-            <p className={`text-2xl font-black tracking-[0.2em] mb-2 ${colors.text}`}>{code}</p>
+
+            {isEditing ? (
+                <div className="mb-2 flex gap-2">
+                    <input
+                        value={tempCode}
+                        onChange={(e) => setTempCode(e.target.value.toUpperCase())}
+                        className="w-full bg-white/50 border border-slate-200 rounded px-2 py-1 text-lg font-bold tracking-wider"
+                        autoFocus
+                    />
+                    <button onClick={handleSave} className="p-1 bg-green-500 text-white rounded hover:bg-green-600">
+                        <Save size={16} />
+                    </button>
+                </div>
+            ) : (
+                <p className={`text-2xl font-black tracking-[0.2em] mb-2 ${colors.text}`}>{code || '---'}</p>
+            )}
+
             <p className="text-xs text-slate-500 mb-4">{description}</p>
             <button
                 onClick={handleCopy}
@@ -94,14 +132,29 @@ const SettingsView = () => {
     }, [organization]);
 
     useEffect(() => {
-        const fetchCode = async () => {
+        const fetchCodes = async () => {
             const org = await SupabaseService.getOrganization();
-            if (org?.invite_code) {
-                setInviteCode(org.invite_code);
+            if (org) {
+                if (org.invite_code) setInviteCode(org.invite_code);
+                if (org.client_invite_code) setClientInviteCode(org.client_invite_code);
             }
         };
-        fetchCode();
+        fetchCodes();
     }, []);
+
+    const [clientInviteCode, setClientInviteCode] = useState<string>('PET24');
+
+
+
+    const handleUpdateClientCode = async (newCode: string) => {
+        const success = await SupabaseService.updateOrganization({ client_invite_code: newCode });
+        if (success) {
+            setClientInviteCode(newCode);
+            alert('Client invite code updated!');
+        } else {
+            alert('Failed to update code.');
+        }
+    };
 
     const handleCopyCode = () => {
         if (inviteCode) {
@@ -169,11 +222,11 @@ const SettingsView = () => {
                         {/* Client Code */}
                         <InviteCodeCard
                             label="Client Invite Code"
-                            code="PET24"
-                            description="Client portal coming soon"
+                            code={clientInviteCode}
+                            description="Share with clients for portal access"
                             colorScheme="amber"
                             icon="🐕"
-                            comingSoon
+                            onSave={handleUpdateClientCode}
                         />
                     </div>
                 </SectionCard>

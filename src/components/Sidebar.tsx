@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOpsCenter } from '../services/store';
 import { isManager } from '../services/permissions';
-import { Home, Users, BookOpen, Send, Settings, LogOut, Zap, Calendar, Clock, Menu, X, Sparkles, ChevronRight } from 'lucide-react';
+import { Home, Users, BookOpen, Send, Settings, LogOut, Zap, Calendar, Clock, Menu, X, Sparkles, ChevronRight, Dog, TrendingUp } from 'lucide-react';
 import { ViewType } from '../types';
 import OpsPilotModal from './OpsPilotModal';
 
@@ -53,13 +53,15 @@ const Sidebar = ({ activeView, setActiveView }: { activeView: ViewType, setActiv
 
                 <div className="w-8 h-px bg-slate-200/50 my-2" />
 
+                <SidebarIcon label="Clients & Pets" icon={Dog} active={activeView === 'clients'} onClick={() => setActiveView('clients')} />
                 <SidebarIcon label={canManage ? 'Staff Roster' : 'My Profile'} icon={Users} active={activeView === 'roster'} onClick={() => setActiveView('roster')} />
                 <SidebarIcon label="Knowledge Hub" icon={BookOpen} active={activeView === 'knowledge'} onClick={() => setActiveView('knowledge')} />
 
+                <SidebarIcon label="Communications" icon={Send} active={activeView === 'comms'} onClick={() => setActiveView('comms')} />
                 {canManage && (
                     <>
-                        <SidebarIcon label="Communications" icon={Send} active={activeView === 'comms'} onClick={() => setActiveView('comms')} />
                         <SidebarIcon label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
+                        <SidebarIcon label="Financial" icon={TrendingUp} active={activeView === 'financial'} onClick={() => setActiveView('financial')} />
                     </>
                 )}
             </div>
@@ -113,20 +115,30 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
                     <span className="font-medium text-sm">{canManage ? 'Roster' : 'My Profile'}</span>
                 </button>
 
+                <button onClick={() => { setActiveView('clients'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
+                    <Dog size={20} />
+                    <span className="font-medium text-sm">Clients</span>
+                </button>
+
                 <button onClick={() => { setActiveView('knowledge'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
                     <BookOpen size={20} />
                     <span className="font-medium text-sm">Knowledge</span>
                 </button>
 
+                <button onClick={() => { setActiveView('comms'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
+                    <Send size={20} />
+                    <span className="font-medium text-sm">Comms</span>
+                </button>
+
                 {canManage && (
                     <>
-                        <button onClick={() => { setActiveView('comms'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
-                            <Send size={20} />
-                            <span className="font-medium text-sm">Comms</span>
-                        </button>
                         <button onClick={() => { setActiveView('settings'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
                             <Settings size={20} />
                             <span className="font-medium text-sm">Settings</span>
+                        </button>
+                        <button onClick={() => { setActiveView('financial'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-emerald-300/80 hover:bg-white/10 hover:text-emerald-300 rounded-xl transition-colors">
+                            <TrendingUp size={20} />
+                            <span className="font-medium text-sm">Financial</span>
                         </button>
                     </>
                 )}

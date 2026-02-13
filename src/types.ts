@@ -1,6 +1,6 @@
 // --- Types based on Schema Parity ---
 
-export type UserRole = 'owner' | 'manager' | 'staff' | 'admin';
+export type UserRole = 'owner' | 'manager' | 'staff';
 
 export interface Organization {
   id: string;
@@ -8,6 +8,7 @@ export interface Organization {
   slug: string;
   industry: string;
   invite_code?: string;
+  client_invite_code?: string;
   pay_period?: 'weekly' | 'biweekly' | 'monthly';
   pay_period_start_day?: number; // 0-6 (Sunday-Saturday)
   settings?: Record<string, any>;
@@ -180,5 +181,105 @@ export interface StaffingRule {
   is_active: boolean;
 }
 
+// --- Clients & Pets Types ---
+export interface Pet {
+  id: string;
+  client_id: string;
+  organization_id: string;
+  name: string;
+  breed: string;
+  age?: number; // Years
+  weight?: number; // lbs
+  gender: 'male' | 'female';
+  is_spayed_neutered: boolean;
+  avatar_url?: string;
+
+  // Care Flags
+  medical_alerts?: string[]; // e.g., ["Diabetic", "Seizures"]
+  behavior_tags?: string[]; // e.g., ["Dog Selective", "Jumper", "Anxious"]
+  dietary_restrictions?: string[];
+
+  // Notes
+  feeding_instructions?: string;
+  medication_instructions?: string;
+  behavior_notes?: string;
+  last_visit?: string;
+
+  status: 'active' | 'inactive' | 'deceased';
+}
+
+export interface Client {
+  id: string;
+  organization_id: string;
+  full_name: string;
+  email: string;
+  phone_primary: string;
+  phone_secondary?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+
+  // Access
+  access_code?: string; // For door/gate
+  notes?: string;
+
+  // Emergency
+  emergency_contact_name?: string;
+  emergency_contact_phone?: string;
+  vet_clinic_name?: string;
+  vet_clinic_phone?: string;
+
+  // Relationships
+  pets?: Pet[];
+
+  created_at: string;
+  last_visit_at?: string;
+  status: 'active' | 'inactive' | 'banned';
+  current_balance?: number; // Added for Portal View
+}
+
 // --- View Types ---
-export type ViewType = 'pulse' | 'roster' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock';
+export type ViewType = 'pulse' | 'roster' | 'clients' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock' | 'financial';
+
+// --- Financial Dashboard Types ---
+
+export interface FinancialInput {
+  id: string;
+  organization_id: string;
+  month: string; // ISO Date "YYYY-MM-01"
+  fixed_overhead: number;
+  bank_balance: number;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface RevenueRecord {
+  id: string;
+  organization_id: string;
+  month: string;
+  boarding_revenue: number;
+  daycare_revenue: number;
+  training_revenue: number;
+  grooming_revenue: number;
+  other_revenue: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PayrollRecord {
+  id: string;
+  organization_id: string;
+  month: string;
+  total_payroll_cost: number;
+  total_hours_worked: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FinancialMonthData {
+  inputs: FinancialInput | null;
+  revenue: RevenueRecord | null;
+  payroll: PayrollRecord | null;
+}

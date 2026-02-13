@@ -6,9 +6,10 @@ import { useOpsCenter } from '../services/store';
 interface HeaderProps {
     user: Profile | null;
     org: Organization;
+    onProfileClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ user, org }) => {
+const Header: React.FC<HeaderProps> = ({ user, org, onProfileClick }) => {
     const { setInviteModalOpen, currentUser } = useOpsCenter();
     const isManager = currentUser?.role === 'owner' || currentUser?.role === 'manager';
 
@@ -47,7 +48,10 @@ const Header: React.FC<HeaderProps> = ({ user, org }) => {
                 </button>
 
                 {/* User Pill (Glass) */}
-                <div className="flex items-center space-x-3 pl-1 pr-1.5 py-1 bg-white/40 hover:bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-sm cursor-pointer transition-all group">
+                <div
+                    onClick={onProfileClick}
+                    className="flex items-center space-x-3 pl-1 pr-1.5 py-1 bg-white/40 hover:bg-white/60 backdrop-blur-md rounded-full border border-white/40 shadow-sm cursor-pointer transition-all group"
+                >
                     <div className="relative">
                         <img src={user.avatar_url} className="w-9 h-9 rounded-full border-2 border-white shadow-sm group-hover:scale-105 transition-transform" alt="User Avatar" />
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>

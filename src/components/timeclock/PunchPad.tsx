@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Clock, Fingerprint, Coffee, ShieldCheck } from 'lucide-react';
+import { Clock, Fingerprint, Coffee } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
+import { TimeMath } from '../../utils/timeMath';
 
 import ConfirmDialog from '../ui/ConfirmDialog';
 
@@ -28,32 +29,17 @@ const PunchPad = () => {
     const getDuration = () => {
         if (!activeTimeEntry) return '00:00:00';
 
-        // CASE 1: ON BREAK -> Show Break Duration Timer
         if (isOnBreak && activeTimeEntry.break_start) {
-            const breakStart = new Date(activeTimeEntry.break_start).getTime();
-            const now = currentTime.getTime();
-            const diff = Math.floor((now - breakStart) / 1000);
-
-            const h = Math.floor(diff / 3600).toString().padStart(2, '0');
-            const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
-            const s = (diff % 60).toString().padStart(2, '0');
-            return `${h}:${m}:${s}`;
+            const ms = currentTime.getTime() - new Date(activeTimeEntry.break_start).getTime();
+            return TimeMath.msToHMS(ms);
         }
 
-        // CASE 2: WORKING -> Show Net Work Duration
-        const start = new Date(activeTimeEntry.clock_in).getTime();
-        const now = currentTime.getTime();
-        let diff = Math.floor((now - start) / 1000);
-
-        // Subtract completed breaks
-        if (activeTimeEntry.total_break_minutes) {
-            diff -= (activeTimeEntry.total_break_minutes * 60);
-        }
-
-        const h = Math.floor(diff / 3600).toString().padStart(2, '0');
-        const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
-        const s = (diff % 60).toString().padStart(2, '0');
-        return `${h}:${m}:${s}`;
+        const netMS = TimeMath.calculateNetDurationMS(
+            activeTimeEntry.clock_in,
+            currentTime,
+            activeTimeEntry.total_break_minutes
+        );
+        return TimeMath.msToHMS(netMS);
     };
 
     const handleMainButtonClick = () => {
@@ -90,11 +76,6 @@ const PunchPad = () => {
 
     return (
         <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex flex-col items-center text-center max-w-md mx-auto relative overflow-hidden">
-            {/* Security Indicator */}
-            <div className={`absolute top-4 right-4 flex items-center space-x-1 text-[10px] font-bold uppercase tracking-wider ${locationStatus === 'locked' ? 'text-emerald-500' : 'text-slate-400'}`}>
-                <MapPin size={12} />
-                <span>{locationStatus === 'locked' ? 'GPS Measured' : 'Locating...'}</span>
-            </div>
 
             {/* Time Display */}
             <div className="mb-8 mt-4">
@@ -150,19 +131,15 @@ const PunchPad = () => {
 
             {/* Secondary Actions (Break) */}
             {isClockedIn && (
-                <div className="grid grid-cols-2 gap-4 w-full mt-4">
+                <div className="w-full mt-4">
                     <button
                         onClick={handleBreakToggle}
-                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-colors ${isOnBreak
+                        className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-colors w-full ${isOnBreak
                             ? 'bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100'
                             : 'border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}
                     >
                         <Coffee size={20} className="mb-1" />
                         <span className="text-xs font-bold">{isOnBreak ? 'End Lunch' : 'Start Lunch'}</span>
-                    </button>
-                    <button className="flex flex-col items-center justify-center p-3 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-                        <ShieldCheck size={20} className="mb-1" />
-                        <span className="text-xs font-bold">Switch Job</span>
                     </button>
                 </div>
             )}

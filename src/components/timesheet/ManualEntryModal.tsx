@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Clock, User, Calendar, Save, Trash2 } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { TimeEntry } from '../../types';
+import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
 import AnalogTimePicker from '../ui/AnalogTimePicker';
 import CustomSelect from '../ui/CustomSelect';
@@ -172,7 +173,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
                                 />
                             </div>
 
-                            <div>
+                            <div className="col-span-2">
                                 <label className="block text-xs font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Break (Mins)</label>
                                 <input
                                     type="number"
@@ -182,7 +183,54 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
                                 />
                             </div>
 
-                            <div>
+                            {/* Calculation Preview */}
+                            {(clockInTime && clockOutTime) && (
+                                <div className="col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                        <span>Calculation Preview</span>
+                                        <Clock size={12} className="text-indigo-400" />
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="text-center">
+                                            <div className="text-sm font-black text-slate-900 border-b border-slate-100 pb-1 mb-1">
+                                                {(() => {
+                                                    const s = `2026-01-01T${clockInTime}`;
+                                                    const e_raw = `2026-01-01T${clockOutTime}`;
+                                                    let e_date = new Date(e_raw);
+                                                    if (e_date < new Date(s)) e_date.setDate(e_date.getDate() + 1);
+
+                                                    const diffMS = e_date.getTime() - new Date(s).getTime();
+                                                    const h = Math.floor(diffMS / TimeMath.MS_PER_HOUR);
+                                                    const m = Math.floor((diffMS % TimeMath.MS_PER_HOUR) / TimeMath.MS_PER_MINUTE);
+                                                    return `${h}h ${m}m`;
+                                                })()}
+                                            </div>
+                                            <div className="text-[9px] text-slate-400 font-bold uppercase">Total Span</div>
+                                        </div>
+                                        <div className="text-center">
+                                            <div className="text-sm font-black text-amber-600 border-b border-amber-100 pb-1 mb-1">
+                                                -{TimeMath.formatMinutes(breakMinutes)}
+                                            </div>
+                                            <div className="text-[9px] text-slate-400 font-bold uppercase">Break</div>
+                                        </div>
+                                        <div className="text-center border-l border-slate-200">
+                                            <div className="text-sm font-black text-indigo-600 border-b border-indigo-100 pb-1 mb-1">
+                                                {(() => {
+                                                    const s = `2026-01-01T${clockInTime}`;
+                                                    let e_date = new Date(`2026-01-01T${clockOutTime}`);
+                                                    if (e_date < new Date(s)) e_date.setDate(e_date.getDate() + 1);
+
+                                                    const netMS = TimeMath.calculateNetDurationMS(s, e_date, breakMinutes);
+                                                    return TimeMath.formatDecimalHours(TimeMath.msToDecimalHours(netMS));
+                                                })()}
+                                            </div>
+                                            <div className="text-[9px] text-slate-400 font-bold uppercase">Net Worked</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="col-span-2">
                                 <CustomSelect
                                     label="Entry Status"
                                     options={statusOptions}

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar, User, Clock, MoreVertical, Shield, CheckCircle2, AlertCircle, LogOut, Edit2, Lock, Trash2, X } from 'lucide-react';
 import { Shift, Profile, TimeEntry } from '../../types';
+import { TimeMath } from '../../utils/timeMath';
 import { useOpsCenter } from '../../services/store';
 import { isManager } from '../../services/permissions';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -111,6 +112,7 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                             <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actual Time</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Break</th>
+                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Worked</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Status</th>
                             <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
                         </tr>
@@ -134,7 +136,6 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                                             <input
                                                 type="checkbox"
                                                 className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
-                                                disabled={isLocked || isActive}
                                                 checked={selectedIds.has(entry.id)}
                                                 onChange={() => toggleSelect(entry.id)}
                                             />
@@ -179,7 +180,16 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-xs font-medium text-slate-600">
-                                        {entry.total_break_minutes ? `${entry.total_break_minutes}m` : '-'}
+                                        {TimeMath.formatMinutes(entry.total_break_minutes || 0)}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-xs font-bold text-slate-900">
+                                            {entry.clock_out ? (
+                                                TimeMath.formatDuration(
+                                                    TimeMath.calculateNetDurationMS(entry.clock_in, entry.clock_out, entry.total_break_minutes)
+                                                )
+                                            ) : '-'}
+                                        </div>
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         {getStatusBadge(entry.status)}

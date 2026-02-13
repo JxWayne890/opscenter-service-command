@@ -3,14 +3,17 @@ import { Activity, ArrowUpRight, Clock, Sparkles, Send, BookOpen, PauseCircle, P
 import { ViewType } from '../../types';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
+import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
 import ShiftCompletionWidget from '../dashboard/ShiftCompletionWidget';
+import LiveRosterDetailModal from '../dashboard/LiveRosterDetailModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) => {
     const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser } = useOpsCenter();
     const [currentTime, setCurrentTime] = React.useState(new Date());
     const [rosterFilter, setRosterFilter] = React.useState<'all' | 'manager' | 'staff'>('all');
+    const [selectedStaffId, setSelectedStaffId] = React.useState<string | null>(null);
 
     // Confirmation State
     const [scheduleWarning, setScheduleWarning] = React.useState<{
@@ -31,14 +34,22 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
     // Calculate duration if clocked in
     const getDuration = () => {
         if (!activeTimeEntry) return '00:00:00';
-        const start = new Date(activeTimeEntry.clock_in).getTime();
-        const now = currentTime.getTime();
-        const diff = Math.floor((now - start) / 1000);
+        const netMS = TimeMath.calculateNetDurationMS(
+            activeTimeEntry.clock_in,
+            currentTime,
+            activeTimeEntry.total_break_minutes
+        );
+        return TimeMath.msToHMS(netMS);
+    };
 
-        const h = Math.floor(diff / 3600).toString().padStart(2, '0');
-        const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
-        const s = (diff % 60).toString().padStart(2, '0');
-        return `${h}:${m}:${s}`;
+    // Check if currently on break/lunch
+    const isOnBreak = activeTimeEntry?.break_start && !activeTimeEntry?.break_end;
+
+    // Get break duration
+    const getBreakDuration = () => {
+        if (!isOnBreak || !activeTimeEntry?.break_start) return '00:00:00';
+        const ms = currentTime.getTime() - new Date(activeTimeEntry.break_start).getTime();
+        return TimeMath.msToHMS(ms);
     };
 
     // Live Roster Logic
@@ -132,13 +143,13 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                         <div className="relative z-10">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center space-x-3">
-                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-colors ${isClockedIn ? 'bg-emerald-500 shadow-emerald-500/30' : 'bg-slate-900 shadow-slate-900/20'}`}>
+                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-colors ${isOnBreak ? 'bg-amber-500 shadow-amber-500/30' : isClockedIn ? 'bg-emerald-500 shadow-emerald-500/30' : 'bg-slate-900 shadow-slate-900/20'}`}>
                                         <Clock size={24} className="text-white" />
                                     </div>
                                     <div>
                                         <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">My Status</p>
-                                        <h2 className={`text-2xl font-black ${isClockedIn ? 'text-emerald-600' : 'text-slate-900'}`}>
-                                            {isClockedIn ? 'Clocked In' : 'Off Clock'}
+                                        <h2 className={`text-2xl font-black ${isOnBreak ? 'text-amber-600' : isClockedIn ? 'text-emerald-600' : 'text-slate-900'}`}>
+                                            {isOnBreak ? 'On Lunch' : isClockedIn ? 'Clocked In' : 'Off Clock'}
                                         </h2>
                                     </div>
                                 </div>
@@ -146,19 +157,35 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
 
                             {isClockedIn ? (
                                 <div className="space-y-4">
-                                    <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl backdrop-blur-sm">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div className="flex items-center space-x-2">
-                                                <span className="relative flex h-2.5 w-2.5">
-                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                                                </span>
-                                                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Shift Active</span>
+                                    {isOnBreak ? (
+                                        <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-2xl backdrop-blur-sm">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="relative flex h-2.5 w-2.5">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">On Lunch</span>
+                                                </div>
+                                                <span className="text-xs text-amber-600 font-medium">Since {activeTimeEntry?.break_start && new Date(activeTimeEntry.break_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                                             </div>
-                                            <span className="text-xs text-emerald-600 font-medium">Since {activeTimeEntry && new Date(activeTimeEntry.clock_in).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                                            <p className="text-4xl font-mono font-bold text-amber-900 tracking-tighter">{getBreakDuration()}</p>
                                         </div>
-                                        <p className="text-4xl font-mono font-bold text-emerald-900 tracking-tighter">{getDuration()}</p>
-                                    </div>
+                                    ) : (
+                                        <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl backdrop-blur-sm">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex items-center space-x-2">
+                                                    <span className="relative flex h-2.5 w-2.5">
+                                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                                    </span>
+                                                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Shift Active</span>
+                                                </div>
+                                                <span className="text-xs text-emerald-600 font-medium">Since {activeTimeEntry && new Date(activeTimeEntry.clock_in).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
+                                            </div>
+                                            <p className="text-4xl font-mono font-bold text-emerald-900 tracking-tighter">{getDuration()}</p>
+                                        </div>
+                                    )}
 
                                     <button
                                         onClick={() => clockOut()}
@@ -254,29 +281,40 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                         const regular = sortedActiveStaff.filter(s => s.role !== 'owner' && s.role !== 'manager');
 
                                         const renderList = (list: typeof sortedActiveStaff) => (
-                                            list.map(s => (
-                                                <button
-                                                    key={s.id}
-                                                    onClick={() => handleNavigateToTimesheet(s.id)}
-                                                    className="w-full flex items-center justify-between p-3 hover:bg-white/60 active:bg-white/80 rounded-2xl transition-all border border-transparent hover:border-white/60 cursor-pointer text-left group"
-                                                >
-                                                    <div className="flex items-center space-x-3">
-                                                        <div className="relative">
-                                                            <img src={s.avatar_url || `https://ui-avatars.com/api/?name=${s.full_name}&background=random`} className="w-10 h-10 rounded-full ring-2 ring-white shadow-sm object-cover group-hover:scale-105 transition-transform" />
-                                                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full"></div>
+                                            list.map(s => {
+                                                const staffEntry = activeEntries.find(e => e.user_id === s.id);
+                                                const isStaffOnBreak = staffEntry?.break_start && !staffEntry?.break_end;
+
+                                                return (
+                                                    <button
+                                                        key={s.id}
+                                                        onClick={() => {
+                                                            if (isManager(currentUser)) {
+                                                                setSelectedStaffId(s.id);
+                                                            } else {
+                                                                handleNavigateToTimesheet(s.id);
+                                                            }
+                                                        }}
+                                                        className="w-full flex items-center justify-between p-3 hover:bg-white/60 active:bg-white/80 rounded-2xl transition-all border border-transparent hover:border-white/60 cursor-pointer text-left group"
+                                                    >
+                                                        <div className="flex items-center space-x-3">
+                                                            <div className="relative">
+                                                                <img src={s.avatar_url || `https://ui-avatars.com/api/?name=${s.full_name}&background=random`} className="w-10 h-10 rounded-full ring-2 ring-white shadow-sm object-cover group-hover:scale-105 transition-transform" />
+                                                                <div className={`absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full ${isStaffOnBreak ? 'bg-amber-500' : 'bg-emerald-500'}`}></div>
+                                                            </div>
+                                                            <div>
+                                                                <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{s.full_name}</p>
+                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{s.role}</p>
+                                                            </div>
                                                         </div>
-                                                        <div>
-                                                            <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{s.full_name}</p>
-                                                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{s.role}</p>
+                                                        <div className="text-right">
+                                                            <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${isStaffOnBreak ? 'bg-amber-100/50 text-amber-700' : 'bg-emerald-100/50 text-emerald-700'}`}>
+                                                                {isStaffOnBreak ? 'On Break' : 'Active'}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <div className="px-2 py-1 bg-emerald-100/50 text-emerald-700 rounded-lg text-[10px] font-bold">
-                                                            Active
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            ))
+                                                    </button>
+                                                );
+                                            })
                                         );
 
                                         if (rosterFilter === 'all') {
@@ -417,6 +455,13 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                 confirmText="Clock In Anyway"
                 cancelText="Go Back"
                 variant="warning"
+            />
+
+            {/* Live Roster Detail Modal */}
+            <LiveRosterDetailModal
+                isOpen={!!selectedStaffId}
+                onClose={() => setSelectedStaffId(null)}
+                staffId={selectedStaffId}
             />
         </div>
     );

@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { Shift, TimeEntry, Availability, TimeOffRequest, ShiftSwap, Message, KnowledgeEntry, CommTemplate, Profile, StaffingRatio, PayStub, Organization } from '../types';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useRef } from 'react';
+import { Shift, TimeEntry, Availability, TimeOffRequest, ShiftSwap, Message, KnowledgeEntry, CommTemplate, Profile, StaffingRatio, PayStub, Organization, Client, Pet } from '../types';
 import { SupabaseService } from './db';
 import { AuthService } from './supabase';
 
@@ -20,6 +20,7 @@ interface OpsCenterContextType {
     payStubs: PayStub[];
     organization: Organization | null;
     pendingInvites: Profile[]; // Restored to match implementation usage if needed
+    clients: Client[];
 
     // UI State
     isInviteModalOpen: boolean;
@@ -50,10 +51,15 @@ interface OpsCenterContextType {
     submitTimeOff: (req: TimeOffRequest) => Promise<void>;
     offerShift: (swap: ShiftSwap) => Promise<void>;
     sendMessage: (msg: Message) => Promise<void>;
+    deleteMessage: (id: string) => Promise<void>;
+    deleteConversation: (groupId: string) => Promise<void>;
     addStaff: (profile: Profile) => Promise<void>;
     updateStaff: (id: string, updates: Partial<Profile>) => Promise<void>;
     updateOrganizationSettings: (updates: Partial<Organization>) => Promise<void>;
     inviteStaff: (email: string, role: string) => Promise<void>;
+    addClient: (client: Client) => void;
+    deleteClient: (id: string) => Promise<void>;
+    deleteClientsBulk: (ids: string[]) => Promise<void>;
     searchKnowledge: (query: string) => KnowledgeEntry[];
     approveShifts: (shiftIds: string[]) => Promise<void>;
     forceClockOut: (shiftId: string) => Promise<void>;
@@ -68,6 +74,12 @@ interface OpsCenterContextType {
     bulkRestoreStaff: (restorations: any[]) => Promise<void>;
     authLoading: boolean;
     hasMissingProfile: boolean;
+
+    // assignments
+    assignments: { id: string, pet_id: string, staff_id: string }[];
+    assignPet: (petId: string, staffId: string) => Promise<void>;
+    unassignPet: (petId: string, staffId: string) => Promise<void>;
+    bulkAssignPets: (petIds: string[], staffId: string) => Promise<void>;
 }
 
 const OpsCenterContext = createContext<OpsCenterContextType | undefined>(undefined);
@@ -85,6 +97,108 @@ const DEFAULT_USER: Profile = {
     status: 'active',
     hourly_rate: 45
 };
+
+const MOCK_CLIENTS: Client[] = [
+    {
+        id: 'c1',
+        organization_id: 'org1',
+        full_name: 'Sarah Jenkins',
+        email: 'sarah.j@example.com',
+        phone_primary: '(555) 123-4567',
+        address: '123 Maple Ave',
+        city: 'Springfield',
+        state: 'IL',
+        zip: '62704',
+        emergency_contact_name: 'Mike Jenkins',
+        emergency_contact_phone: '(555) 987-6543',
+        status: 'active',
+        created_at: '2023-01-15T10:00:00Z',
+        pets: [
+            {
+                id: 'p1',
+                client_id: 'c1',
+                organization_id: 'org1',
+                name: 'Cooper',
+                breed: 'Golden Retriever',
+                gender: 'male',
+                is_spayed_neutered: true,
+                age: 3,
+                weight: 65,
+                medical_alerts: ['Hip Dysplasia'],
+                dietary_restrictions: ['Chicken Allergy'],
+                behavior_tags: ['Friendly', 'High Energy'],
+                status: 'active',
+                avatar_url: 'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=150&q=80'
+            },
+            {
+                id: 'p2',
+                client_id: 'c1',
+                organization_id: 'org1',
+                name: 'Luna',
+                breed: 'French Bulldog',
+                gender: 'female',
+                is_spayed_neutered: true,
+                age: 2,
+                weight: 24,
+                status: 'active',
+                avatar_url: 'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=150&q=80'
+            }
+        ]
+    },
+    {
+        id: 'c2',
+        organization_id: 'org1',
+        full_name: 'Robert Chen',
+        email: 'r.chen@tech.co',
+        phone_primary: '(555) 555-0199',
+        address: '450 Oak St, Apt 4B',
+        city: 'Springfield',
+        state: 'IL',
+        zip: '62701',
+        status: 'active',
+        created_at: '2023-03-20T14:30:00Z',
+        pets: [
+            {
+                id: 'p3',
+                client_id: 'c2',
+                organization_id: 'org1',
+                name: 'Max',
+                breed: 'German Shepherd',
+                gender: 'male',
+                is_spayed_neutered: true,
+                age: 5,
+                weight: 85,
+                behavior_tags: ['Protective', 'Ball Obsessed'],
+                status: 'active',
+                avatar_url: 'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?auto=format&fit=crop&w=150&q=80'
+            }
+        ]
+    },
+    {
+        id: 'c3',
+        organization_id: 'org1',
+        full_name: 'Emily Davis',
+        email: 'emily.d@canvas.net',
+        phone_primary: '(555) 246-8135',
+        status: 'inactive',
+        created_at: '2022-11-05T09:15:00Z',
+        pets: [
+            {
+                id: 'p4',
+                client_id: 'c3',
+                organization_id: 'org1',
+                name: 'Bella',
+                breed: 'Poodle Mix',
+                gender: 'female',
+                is_spayed_neutered: true,
+                age: 8,
+                status: 'active',
+                medical_alerts: ['Diabetic - Insulin Required'],
+                avatar_url: 'https://images.unsplash.com/photo-1591769225440-811ad7d6eca6?auto=format&fit=crop&w=150&q=80'
+            }
+        ]
+    }
+];
 
 export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     // ==================== STATE ====================
@@ -108,38 +222,47 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [navigatedUser, setNavigatedUser] = useState<string | null>(null);
     const [payStubs, setPayStubs] = useState<PayStub[]>([]);
     const [organization, setOrganization] = useState<Organization | null>(null);
+    const [clients, setClients] = useState<Client[]>([]);
+    const [assignments, setAssignments] = useState<{ id: string, pet_id: string, staff_id: string }[]>([]);
+
+    // Ref to track auth state for use in callbacks (avoids stale closure)
+    const isAuthenticatedRef = useRef(false);
 
     // ==================== DATA LOADING ====================
-    const refreshData = async () => {
-        console.log('=== REFRESHING DATA FROM SUPABASE ===');
-        setIsLoading(true);
+    const refreshData = async (silent = false) => {
+        if (!silent) {
+            console.log('=== REFRESHING DATA FROM SUPABASE ===');
+            setIsLoading(true);
+        } else {
+            console.log('=== SILENT REFRESH FROM SUPABASE ===');
+        }
 
         try {
-            const [fetchedStaff, fetchedShifts, fetchedRatios, fetchedTimeEntries, fetchedOrg] = await Promise.all([
+            const [fetchedStaff, fetchedShifts, fetchedRatios, fetchedTimeEntries, fetchedOrg, fetchedMessages, fetchedClients] = await Promise.all([
                 SupabaseService.getProfiles(),
                 SupabaseService.getShifts(),
                 SupabaseService.getRatios(),
                 SupabaseService.getTimeEntries(),
-                SupabaseService.getOrganization()
+                SupabaseService.getOrganization(),
+                SupabaseService.getMessages(),
+                SupabaseService.getClients()
             ]);
-
-            console.log('Data loaded:', {
-                staff: fetchedStaff.length,
-                shifts: fetchedShifts.length,
-                ratios: fetchedRatios.length,
-                timeEntries: fetchedTimeEntries.length,
-                organization: !!fetchedOrg
-            });
 
             setStaff(fetchedStaff);
             setShifts(fetchedShifts);
             setRatios(fetchedRatios);
             setTimeEntries(fetchedTimeEntries);
             setOrganization(fetchedOrg);
+            setMessages(fetchedMessages);
+            setClients(fetchedClients.length > 0 ? fetchedClients : MOCK_CLIENTS);
+
+            // fetch assignments
+            const fetchedAssignments = await SupabaseService.getPetAssignments();
+            setAssignments(fetchedAssignments);
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
-            setIsLoading(false);
+            if (!silent) setIsLoading(false);
         }
     };
 
@@ -148,32 +271,36 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         let isMounted = true;
 
         // Helper function to load the user profile with retries
-        const loadUserProfile = async (userId: string, email: string, retries = 3) => {
+        const loadUserProfile = async (userId: string, email: string, retries = 3, silent = false) => {
             try {
-                console.log(`[Auth] Fetching user profile (attempt ${4 - retries}/3)...`);
+                if (!silent) {
+                    console.log(`[Auth] Fetching user profile (attempt ${4 - retries}/3)...`);
+                }
 
                 // Add a tiny initial delay to allow DB propagation
-                if (retries === 3) await new Promise(resolve => setTimeout(resolve, 500));
+                if (retries === 3 && !silent) await new Promise(resolve => setTimeout(resolve, 500));
 
                 const userProfile = await SupabaseService.getProfileById(userId);
 
                 if (isMounted) {
                     if (userProfile) {
-                        console.log('[Auth] Profile found:', userProfile.full_name);
+                        if (!silent) console.log('[Auth] Profile found:', userProfile.full_name);
                         setCurrentUser(userProfile);
                         setIsAuthenticated(true);
+                        isAuthenticatedRef.current = true;
                         setHasMissingProfile(false);
-                        refreshData();
+                        refreshData(silent);
                         setAuthLoading(false);
                         return true;
                     } else if (retries > 0) {
                         console.warn(`[Auth] Profile not found for ${email}, retrying in 1s...`);
-                        setTimeout(() => loadUserProfile(userId, email, retries - 1), 1000);
+                        setTimeout(() => loadUserProfile(userId, email, retries - 1, silent), 1000);
                         return false;
                     } else {
                         console.error('[Auth] No profile found after retries for user:', email);
                         setHasMissingProfile(true);
                         setIsAuthenticated(false);
+                        isAuthenticatedRef.current = false;
                         setAuthLoading(false);
                         return false;
                     }
@@ -182,10 +309,11 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 console.error('[Auth] Error fetching profile:', error);
                 if (isMounted) {
                     if (retries > 0) {
-                        setTimeout(() => loadUserProfile(userId, email, retries - 1), 1000);
+                        setTimeout(() => loadUserProfile(userId, email, retries - 1, silent), 1000);
                     } else {
                         setHasMissingProfile(true);
                         setIsAuthenticated(false);
+                        isAuthenticatedRef.current = false;
                         setAuthLoading(false);
                     }
                 }
@@ -221,13 +349,18 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             }
 
             if (event === 'SIGNED_IN' && session?.user) {
-                setAuthLoading(true); // Ensure loading screen shows during profile fetch
-                await loadUserProfile(session.user.id, session.user.email || '');
+                // Use ref to check if already authenticated (avoids stale closure)
+                const isSilent = isAuthenticatedRef.current;
+                if (!isSilent) {
+                    setAuthLoading(true);
+                }
+                await loadUserProfile(session.user.id, session.user.email || '', 3, isSilent);
             } else if (event === 'SIGNED_OUT') {
                 console.log('User signed out');
                 if (isMounted) {
                     setCurrentUser(null);
                     setIsAuthenticated(false);
+                    isAuthenticatedRef.current = false;
                     setHasMissingProfile(false);
                     setStaff([]);
                     setShifts([]);
@@ -244,10 +377,12 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // Load remaining data when authenticated
     useEffect(() => {
-        if (isAuthenticated) {
+        // Only refresh if authenticated AND we don't have staff data yet
+        // This prevents double-calling refreshData when loadUserProfile just did it
+        if (isAuthenticated && staff.length === 0) {
             refreshData();
         }
-    }, [isAuthenticated]);
+    }, [isAuthenticated, staff.length]);
 
     // ==================== AUTH ====================
     const signIn = async (email: string, password: string): Promise<{ success: boolean; error: string | null }> => {
@@ -301,6 +436,51 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     const isClockedIn = !!activeTimeEntry;
 
     // ==================== STAFF ACTIONS ====================
+    const addClient = async (client: Client) => {
+        console.log('=== SAVING CLIENT ===', client);
+        const pets = client.pets || [];
+
+        // Determine if this is an update or create
+        // Mock IDs start with 'c' or 'local-'
+        const isUpdate = client.id && !client.id.startsWith('c') && !client.id.startsWith('local-');
+
+        const savedClient = isUpdate
+            ? await SupabaseService.updateClient(client, pets)
+            : await SupabaseService.createClient(client, pets);
+
+        if (savedClient) {
+            setClients(prev => {
+                const filtered = prev.filter(c => c.id !== savedClient.id);
+                return [savedClient, ...filtered];
+            });
+        } else {
+            setClients(prev => {
+                const filtered = prev.filter(c => c.id !== client.id);
+                return [{ ...client, id: client.id || `local-${Date.now()}` }, ...filtered];
+            });
+        }
+    };
+
+    const deleteClient = async (id: string) => {
+        console.log('=== DELETING CLIENT ===', id);
+        const success = await SupabaseService.deleteClient(id);
+        if (success) {
+            setClients(prev => prev.filter(c => c.id !== id));
+        } else {
+            console.error('Failed to delete client');
+        }
+    };
+
+    const deleteClientsBulk = async (ids: string[]) => {
+        console.log('=== BULK DELETING CLIENTS ===', ids);
+        const success = await SupabaseService.deleteClientsBulk(ids);
+        if (success) {
+            setClients(prev => prev.filter(c => !ids.includes(c.id)));
+        } else {
+            console.error('Failed to bulk delete clients');
+        }
+    };
+
     const addStaff = async (profile: Profile) => {
         console.log('=== ADDING STAFF ===', profile);
 
@@ -669,10 +849,40 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             console.log('Bulk restoration complete!');
         } catch (error) {
             console.error('Bulk restoration failed:', error);
-            alert('Failed to restore some or all records.');
         } finally {
             setIsLoading(false);
         }
+    };
+
+    // ==================== PET ASSIGNMENTS ====================
+    const assignPet = async (petId: string, staffId: string) => {
+        // Optimistic
+        const tempId = crypto.randomUUID();
+        setAssignments(prev => [...prev, { id: tempId, pet_id: petId, staff_id: staffId }]);
+
+        await SupabaseService.assignPet(petId, staffId, currentUser?.id);
+    };
+
+    const unassignPet = async (petId: string, staffId: string) => {
+        setAssignments(prev => prev.filter(a => !(a.pet_id === petId && a.staff_id === staffId)));
+        await SupabaseService.unassignPet(petId, staffId);
+    };
+
+    const bulkAssignPets = async (petIds: string[], staffId: string) => {
+        // Optimistic
+        const newAssignments = petIds.map(petId => ({
+            id: crypto.randomUUID(),
+            pet_id: petId,
+            staff_id: staffId
+        }));
+
+        // Remove duplicates if any exist in optimistic update (simplified)
+        setAssignments(prev => {
+            const filtered = prev.filter(p => !(petIds.includes(p.pet_id) && p.staff_id === staffId));
+            return [...filtered, ...newAssignments];
+        });
+
+        await SupabaseService.bulkAssignPets(petIds, staffId, currentUser?.id);
     };
 
     // ==================== OTHER ACTIONS (Local) ====================
@@ -685,7 +895,30 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const sendMessage = async (msg: Message) => {
+        // Optimistic update
         setMessages(prev => [...prev, msg]);
+        await SupabaseService.sendMessage(msg);
+    };
+
+    const deleteMessage = async (id: string) => {
+        setMessages(prev => prev.filter(m => m.id !== id));
+        await SupabaseService.deleteMessage(id);
+    };
+
+    const deleteConversation = async (targetUserId: string) => {
+        // Optimistic local delete for 1:1 conversation
+        setMessages(prev => prev.filter(m => {
+            if (!currentUser) return true;
+            // Check if message belongs to this pair
+            const isRelated = (m.sender_id === currentUser.id && m.recipient_id === targetUserId) ||
+                (m.sender_id === targetUserId && m.recipient_id === currentUser.id) ||
+                (m.group_id === targetUserId); // Fallback
+            return !isRelated;
+        }));
+
+        if (currentUser) {
+            await SupabaseService.deleteConversation(targetUserId);
+        }
     };
 
     const searchKnowledge = (query: string) => {
@@ -760,6 +993,10 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             isLoading,
             navigatedUser,
             setNavigatedUser,
+            clients,
+            addClient,
+            deleteClient,
+            deleteClientsBulk,
             activeTimeEntry,
             isClockedIn,
             publishSchedule,
@@ -776,6 +1013,8 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             submitTimeOff,
             offerShift,
             sendMessage,
+            deleteMessage,
+            deleteConversation,
             addStaff,
             updateStaff,
             updateOrganizationSettings,
@@ -796,7 +1035,11 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             startBreak,
             endBreak,
             addTimeEntry,
-            bulkRestoreStaff
+            bulkRestoreStaff,
+            assignments,
+            assignPet,
+            unassignPet,
+            bulkAssignPets
         }}>
             {children}
         </OpsCenterContext.Provider>

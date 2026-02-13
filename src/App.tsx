@@ -10,8 +10,13 @@ import InviteStaffModal from './components/InviteStaffModal';
 import ScheduleView from './components/views/ScheduleView';
 import TimeClockView from './components/views/TimeClockView';
 import SettingsView from './components/views/SettingsView';
+import ClientsView from './components/views/ClientsView';
+import FinancialView from './components/views/FinancialView';
 import LoginScreen from './components/LoginScreen';
 import { OpsCenterProvider, useOpsCenter } from './services/store';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import PortalLogin from './components/portal/PortalLogin';
+import PortalDashboard from './components/portal/PortalDashboard';
 
 const DashboardContent: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('pulse');
@@ -75,7 +80,11 @@ const DashboardContent: React.FC = () => {
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
 
       <div className="flex-1 flex flex-col min-w-0">
-        <Header user={currentUser} org={displayOrg} />
+        <Header
+          user={currentUser}
+          org={displayOrg}
+          onProfileClick={() => setActiveView('roster')}
+        />
 
         {isLoading && (
           <div className="absolute top-24 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-indigo-600 text-white text-xs font-bold rounded-full shadow-lg z-50 animate-pulse">
@@ -88,10 +97,12 @@ const DashboardContent: React.FC = () => {
             {activeView === 'pulse' && <PulseView setActiveView={setActiveView} />}
             {activeView === 'schedule' && <ScheduleView />}
             {activeView === 'timeclock' && <TimeClockView />}
+            {activeView === 'clients' && <ClientsView />}
             {activeView === 'roster' && <RosterView />}
             {activeView === 'knowledge' && <KnowledgeHub />}
             {activeView === 'comms' && <CommsHub />}
             {activeView === 'settings' && <SettingsView />}
+            {activeView === 'financial' && <FinancialView />}
           </div>
         </main>
       </div>
@@ -103,9 +114,15 @@ const DashboardContent: React.FC = () => {
 
 const App: React.FC = () => {
   return (
-    <OpsCenterProvider>
-      <DashboardContent />
-    </OpsCenterProvider>
+    <BrowserRouter>
+      <OpsCenterProvider>
+        <Routes>
+          <Route path="/portal/login" element={<PortalLogin />} />
+          <Route path="/portal/dashboard" element={<PortalDashboard />} />
+          <Route path="/*" element={<DashboardContent />} />
+        </Routes>
+      </OpsCenterProvider>
+    </BrowserRouter>
   );
 };
 
