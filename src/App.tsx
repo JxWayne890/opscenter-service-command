@@ -1,22 +1,34 @@
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { ViewType } from './types';
 import Sidebar, { MobileNav } from './components/Sidebar';
 import Header from './components/Header';
-import PulseView from './components/views/PulseView';
-import KnowledgeHub from './components/views/KnowledgeHub';
-import CommsHub from './components/views/CommsHub';
-import RosterView from './components/views/RosterView';
 import InviteStaffModal from './components/InviteStaffModal';
-import ScheduleView from './components/views/ScheduleView';
-import TimeClockView from './components/views/TimeClockView';
-import SettingsView from './components/views/SettingsView';
-import ClientsView from './components/views/ClientsView';
-import FinancialView from './components/views/FinancialView';
 import LoginScreen from './components/LoginScreen';
+import ViewErrorBoundary from './components/ViewErrorBoundary';
 import { OpsCenterProvider, useOpsCenter } from './services/store';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import PortalLogin from './components/portal/PortalLogin';
-import PortalDashboard from './components/portal/PortalDashboard';
+
+// Lazy-loaded views for code splitting
+const PulseView = lazy(() => import('./components/views/PulseView'));
+const KnowledgeHub = lazy(() => import('./components/views/KnowledgeHub'));
+const CommsHub = lazy(() => import('./components/views/CommsHub'));
+const RosterView = lazy(() => import('./components/views/RosterView'));
+const ScheduleView = lazy(() => import('./components/views/ScheduleView'));
+const TimeClockView = lazy(() => import('./components/views/TimeClockView'));
+const SettingsView = lazy(() => import('./components/views/SettingsView'));
+const ClientsView = lazy(() => import('./components/views/ClientsView'));
+const FinancialView = lazy(() => import('./components/views/FinancialView'));
+const PortalLogin = lazy(() => import('./components/portal/PortalLogin'));
+const PortalDashboard = lazy(() => import('./components/portal/PortalDashboard'));
+
+const ViewSpinner = () => (
+  <div className="flex items-center justify-center min-h-[400px]">
+    <div className="text-center">
+      <div className="w-10 h-10 border-3 border-slate-200 border-t-indigo-500 rounded-full animate-spin mx-auto mb-3"></div>
+      <p className="text-xs font-medium text-slate-400">Loading...</p>
+    </div>
+  </div>
+);
 
 const DashboardContent: React.FC = () => {
   const [activeView, setActiveView] = useState<ViewType>('pulse');
@@ -94,15 +106,35 @@ const DashboardContent: React.FC = () => {
 
         <main className="flex-1 relative pb-32 lg:pb-8 px-4 lg:px-6">
           <div className="max-w-[1600px] w-full mx-auto animate-slide-up">
-            {activeView === 'pulse' && <PulseView setActiveView={setActiveView} />}
-            {activeView === 'schedule' && <ScheduleView />}
-            {activeView === 'timeclock' && <TimeClockView />}
-            {activeView === 'clients' && <ClientsView />}
-            {activeView === 'roster' && <RosterView />}
-            {activeView === 'knowledge' && <KnowledgeHub />}
-            {activeView === 'comms' && <CommsHub />}
-            {activeView === 'settings' && <SettingsView />}
-            {activeView === 'financial' && <FinancialView />}
+            <Suspense fallback={<ViewSpinner />}>
+              <ViewErrorBoundary viewName="Pulse">
+                {activeView === 'pulse' && <PulseView setActiveView={setActiveView} />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Schedule">
+                {activeView === 'schedule' && <ScheduleView />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Time Clock">
+                {activeView === 'timeclock' && <TimeClockView />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Clients">
+                {activeView === 'clients' && <ClientsView />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Roster">
+                {activeView === 'roster' && <RosterView />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Knowledge Hub">
+                {activeView === 'knowledge' && <KnowledgeHub />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Comms Hub">
+                {activeView === 'comms' && <CommsHub />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Settings">
+                {activeView === 'settings' && <SettingsView />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Financial">
+                {activeView === 'financial' && <FinancialView />}
+              </ViewErrorBoundary>
+            </Suspense>
           </div>
         </main>
       </div>
@@ -116,11 +148,13 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <OpsCenterProvider>
-        <Routes>
-          <Route path="/portal/login" element={<PortalLogin />} />
-          <Route path="/portal/dashboard" element={<PortalDashboard />} />
-          <Route path="/*" element={<DashboardContent />} />
-        </Routes>
+        <Suspense fallback={<ViewSpinner />}>
+          <Routes>
+            <Route path="/portal/login" element={<PortalLogin />} />
+            <Route path="/portal/dashboard" element={<PortalDashboard />} />
+            <Route path="/*" element={<DashboardContent />} />
+          </Routes>
+        </Suspense>
       </OpsCenterProvider>
     </BrowserRouter>
   );
