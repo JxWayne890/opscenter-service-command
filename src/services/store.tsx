@@ -702,6 +702,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     // ==================== TIME CLOCK ====================
     const clockIn = async (location?: any) => {
         if (!currentUser) return;
+        if (isClockedIn) return; // Prevent double clock-in
         const newEntry: TimeEntry = {
             id: crypto.randomUUID(),
             organization_id: ORG_ID,
@@ -782,7 +783,15 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         setTimeEntries(prev => prev.map(te => te.id === activeTimeEntry.id ? { ...te, ...updates } : te));
 
         // DB
-        await SupabaseService.updateTimeEntry(activeTimeEntry.id, updates);
+        const success = await SupabaseService.updateTimeEntry(activeTimeEntry.id, updates);
+        if (!success) {
+            // Revert on failure
+            setTimeEntries(prev => prev.map(te =>
+                te.id === activeTimeEntry.id
+                    ? { ...te, break_start: undefined, breaks: existingBreaks }
+                    : te
+            ));
+        }
     };
 
     const endBreak = async () => {
@@ -794,15 +803,11 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         // Update the last break entry with end time and duration
         const existingBreaks = activeTimeEntry.breaks || [];
-        const updatedBreaks = [...existingBreaks];
-        if (updatedBreaks.length > 0) {
-            const lastBreak = updatedBreaks[updatedBreaks.length - 1];
-            // Verify it matches the start time we expect, or just update the last one
-            if (!lastBreak.end) {
-                lastBreak.end = end.toISOString();
-                lastBreak.duration = diffMinutes;
-            }
-        }
+        const updatedBreaks = existingBreaks.map((b: any, idx: number) =>
+            idx === existingBreaks.length - 1 && !b.end
+                ? { ...b, end: end.toISOString(), duration: diffMinutes }
+                : b
+        );
 
         const updates = {
             break_start: undefined, // Clear start so we are not "on break" anymore
@@ -913,14 +918,20 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const sendMessage = async (msg: Message) => {
-        // Optimistic update
         setMessages(prev => [...prev, msg]);
-        await SupabaseService.sendMessage(msg);
+        const created = await SupabaseService.sendMessage(msg);
+        if (!created) {
+            setMessages(prev => prev.filter(m => m.id !== msg.id));
+        }
     };
 
     const deleteMessage = async (id: string) => {
+        const original = messages.find(m => m.id === id);
         setMessages(prev => prev.filter(m => m.id !== id));
-        await SupabaseService.deleteMessage(id);
+        const success = await SupabaseService.deleteMessage(id);
+        if (!success && original) {
+            setMessages(prev => [...prev, original]);
+        }
     };
 
     const deleteConversation = async (targetUserId: string) => {
@@ -952,7 +963,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     const createPayStub = useCallback(async (stub: Partial<PayStub>) => {
         const { created_at, updated_at, ...clean } = stub;
 
-        if (clean.status === 'approved' && !clean.approved_by) {
+        if (clean.status === 'approved' && !clean.approved_by && currentUser) {
             clean.approved_by = currentUser.id;
         }
 

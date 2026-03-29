@@ -100,7 +100,7 @@ const TimeClockView = () => {
                                                 {entry.breaks.map((b, i) => {
                                                     const duration = b.duration || (b.end
                                                         ? Math.floor((new Date(b.end).getTime() - new Date(b.start).getTime()) / 60000)
-                                                        : 0);
+                                                        : Math.floor((Date.now() - new Date(b.start).getTime()) / 60000));
 
                                                     return (
                                                         <div key={i} className="flex items-center space-x-2">

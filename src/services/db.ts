@@ -489,13 +489,14 @@ export const SupabaseService = {
     console.log('[DB] Upserting pay stub:', payStub);
 
     // Ensure organization_id is set to prevent RLS failures
-    if (!payStub.organization_id) {
-      payStub.organization_id = ORG_ID;
-    }
+    const payload = {
+      ...payStub,
+      organization_id: payStub.organization_id || ORG_ID,
+    };
 
     const { data, error } = await supabase
       .from('pay_stubs')
-      .upsert(payStub as any, {
+      .upsert(payload as any, {
         onConflict: 'user_id,period_start,period_end',
         ignoreDuplicates: false
       })
@@ -769,7 +770,8 @@ export const SupabaseService = {
     console.log('Fetching pet assignments...');
     const { data, error } = await supabase
       .from('pet_assignments')
-      .select('*');
+      .select('*')
+      .eq('organization_id', ORG_ID);
 
     if (error) {
       console.error('Error fetching pet assignments:', error);

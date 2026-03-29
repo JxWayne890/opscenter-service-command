@@ -17,8 +17,13 @@ interface ErrorEvent {
 
 const errorLog: ErrorEvent[] = [];
 
+let initialized = false;
+
 export const ErrorTracking = {
   init() {
+    if (initialized) return;
+    initialized = true;
+
     // Global unhandled error handler
     window.addEventListener('error', (event) => {
       this.captureException(event.error || new Error(event.message), {

@@ -82,7 +82,7 @@ const CommsHub = () => {
     // Scroll when messages change
     React.useEffect(() => {
         scrollToBottom();
-    }, [threadMessages, selectedThreadId, lightboxImage]); // Trigger on messages, thread switch, or lightbox close
+    }, [threadMessages, selectedThreadId]); // Trigger on messages or thread switch
 
     // Helper: Clean Preview Text
     const getPreviewText = (content: string) => {
@@ -628,7 +628,7 @@ const CommsHub = () => {
                                 />
                                 <button
                                     type="submit"
-                                    disabled={!newMessageText.trim() && !isSending}
+                                    disabled={(!newMessageText.trim() && pendingFiles.length === 0) || isSending}
                                     className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition-all disabled:opacity-50 disabled:shadow-none hover:bg-indigo-700"
                                 >
                                     {isSending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}

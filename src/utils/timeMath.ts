@@ -21,7 +21,7 @@ export const TimeMath = {
         const start = new Date(clockIn).getTime();
         const end = clockOut ? new Date(clockOut).getTime() : Date.now();
         const totalDuration = end - start;
-        const breakDuration = (breakMinutes || 0) * this.MS_PER_MINUTE;
+        const breakDuration = Math.max(0, breakMinutes || 0) * this.MS_PER_MINUTE;
 
         // Ensure we don't return negative duration
         return Math.max(0, totalDuration - breakDuration);

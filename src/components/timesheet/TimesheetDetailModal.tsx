@@ -57,32 +57,33 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
     // Financial calculations
     const stats = useMemo(() => {
         const approvedHours = periodData
-            .filter(e => e.status === 'approved')
+            .filter(e => e.status === 'approved' && e.clock_out)
             .reduce((sum, e) => {
                 const netMS = TimeMath.calculateNetDurationMS(
                     e.clock_in,
-                    e.clock_out || new Date(),
+                    e.clock_out,
                     e.total_break_minutes
                 );
                 return sum + TimeMath.msToDecimalHours(netMS);
             }, 0);
 
         const pendingHours = periodData
-            .filter(e => e.status === 'pending_approval' || e.status === 'active')
+            .filter(e => e.status === 'pending_approval' && e.clock_out)
             .reduce((sum, e) => {
                 const netMS = TimeMath.calculateNetDurationMS(
                     e.clock_in,
-                    e.clock_out || new Date(),
+                    e.clock_out,
                     e.total_break_minutes
                 );
                 return sum + TimeMath.msToDecimalHours(netMS);
             }, 0);
 
         const clockedHours = periodData
+            .filter(e => e.clock_out)
             .reduce((sum, e) => {
                 const netMS = TimeMath.calculateNetDurationMS(
                     e.clock_in,
-                    e.clock_out || new Date(),
+                    e.clock_out,
                     e.total_break_minutes
                 );
                 return sum + TimeMath.msToDecimalHours(netMS);

@@ -430,9 +430,14 @@ const RosterView = () => {
                         {/* Mobile Staff List */}
                         <div className="lg:hidden space-y-3 px-1">
                             {filteredStaff.map(user => {
-                                // Mock Status Logic
-                                const isClockedIn = Math.random() > 0.7;
-                                const totalHours = (Math.random() * 40).toFixed(1);
+                                // Real status from time entries
+                                const userEntries = timeEntries.filter(te => te.user_id === user.id);
+                                const isClockedIn = userEntries.some(te => !te.clock_out && te.status === 'active');
+                                const totalHours = userEntries.reduce((acc, te) => {
+                                    if (!te.clock_out && te.status !== 'active') return acc;
+                                    const netMS = TimeMath.calculateNetDurationMS(te.clock_in, te.clock_out || new Date(), te.total_break_minutes);
+                                    return acc + TimeMath.msToDecimalHours(netMS);
+                                }, 0).toFixed(1);
 
                                 return (
                                     <div

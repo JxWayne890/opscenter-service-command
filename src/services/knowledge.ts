@@ -112,7 +112,7 @@ export const scoreKnowledgeEntry = (query: string, entry: KnowledgeEntry) => {
 
   const title = normalizeText(entry.title);
   const category = normalizeText(entry.category);
-  const tags = entry.tags.map(tag => normalizeText(tag));
+  const tags = (entry.tags || []).map(tag => normalizeText(tag));
   const content = normalizeText(entry.content_raw);
   const tokens = tokenize(query);
 

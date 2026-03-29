@@ -104,7 +104,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
             const hasOverlap = shifts.some(s => {
                 if (s.user_id !== userId) return false;
                 if (editShift && s.id === editShift.id) return false; // Ignore self
-                if (s.status !== 'published') return false; // Optional: Decide if we care about drafts
+                if (s.status === 'completed' || s.status === 'rejected') return false; // Skip past/rejected shifts
 
                 const sStart = new Date(s.start_time);
                 const sEnd = new Date(s.end_time);
