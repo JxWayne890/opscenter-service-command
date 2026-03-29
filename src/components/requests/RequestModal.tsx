@@ -15,8 +15,26 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose }) => {
     const [type, setType] = useState<'paid' | 'unpaid' | 'sick' | 'holiday'>('unpaid');
     const [reason, setReason] = useState('');
 
+    const [error, setError] = useState<string | null>(null);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+
+        if (!startDate || !endDate) {
+            setError('Please select both start and end dates.');
+            return;
+        }
+
+        if (new Date(endDate) < new Date(startDate)) {
+            setError('End date cannot be before start date.');
+            return;
+        }
+
+        if (!reason.trim()) {
+            setError('Please provide a reason for your request.');
+            return;
+        }
 
         const req: TimeOffRequest = {
             id: crypto.randomUUID(),
@@ -47,6 +65,11 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose }) => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-5">
+                    {error && (
+                        <div className="p-4 bg-rose-50 border border-rose-100 rounded-2xl text-rose-600 text-sm font-bold">
+                            {error}
+                        </div>
+                    )}
 
                     <div>
                         <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Request Type</label>

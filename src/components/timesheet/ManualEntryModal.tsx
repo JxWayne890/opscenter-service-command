@@ -57,11 +57,27 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
             return;
         }
 
+        if (!date) {
+            setError('Please select a work date.');
+            return;
+        }
+
         const start = new Date(`${date}T${clockInTime}`);
         const end = new Date(`${date}T${clockOutTime}`);
 
         if (end < start) {
             end.setDate(end.getDate() + 1);
+        }
+
+        // Validate break doesn't exceed shift duration
+        const shiftMinutes = (end.getTime() - start.getTime()) / 60000;
+        if (breakMinutes < 0) {
+            setError('Break minutes cannot be negative.');
+            return;
+        }
+        if (breakMinutes >= shiftMinutes) {
+            setError('Break cannot be longer than the shift itself.');
+            return;
         }
 
         const entryData: Omit<TimeEntry, 'id'> = {

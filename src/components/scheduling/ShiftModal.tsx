@@ -78,6 +78,25 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
         // Handle overnight shifts
         if (end < start) end.setDate(end.getDate() + 1);
 
+        // Validate assigned shift has a staff member selected
+        if (!isOpenShift && !userId) {
+            setError('Please select a staff member for this shift.');
+            return;
+        }
+
+        // Validate role type
+        if (!roleType.trim()) {
+            setError('Please enter a role or position.');
+            return;
+        }
+
+        // Validate minimum shift duration (15 minutes)
+        const durationMs = end.getTime() - start.getTime();
+        if (durationMs < 15 * 60 * 1000) {
+            setError('Shift must be at least 15 minutes long.');
+            return;
+        }
+
         // --- Overlap Validation ---
         if (!isOpenShift && userId) {
             const hasOverlap = shifts.some(s => {

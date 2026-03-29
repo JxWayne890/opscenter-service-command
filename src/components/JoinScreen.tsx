@@ -80,6 +80,17 @@ const JoinScreen: React.FC<JoinScreenProps> = ({ onJoinSuccess, onBackToLogin })
         if (!organization) return;
 
         // Validation
+        if (fullName.trim().length < 2) {
+            setError('Please enter your full name');
+            return;
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            setError('Please enter a valid email address');
+            return;
+        }
+
         if (password.length < 6) {
             setError('Password must be at least 6 characters');
             return;
@@ -267,7 +278,7 @@ const JoinScreen: React.FC<JoinScreenProps> = ({ onJoinSuccess, onBackToLogin })
 
                             <button
                                 type="submit"
-                                disabled={isLoading}
+                                disabled={isLoading || !fullName.trim() || !email || !password || !confirmPassword}
                                 className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-2xl font-bold text-sm shadow-xl shadow-indigo-600/20 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 disabled:opacity-50 mt-4"
                             >
                                 {isLoading ? (
