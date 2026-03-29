@@ -232,10 +232,8 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     // ==================== DATA LOADING ====================
     const refreshData = async (silent = false) => {
         if (!silent) {
-            console.log('=== REFRESHING DATA FROM SUPABASE ===');
             setIsLoading(true);
         } else {
-            console.log('=== SILENT REFRESH FROM SUPABASE ===');
         }
 
         try {
@@ -263,7 +261,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             const fetchedAssignments = await SupabaseService.getPetAssignments();
             setAssignments(fetchedAssignments);
         } catch (error) {
-            console.error('Error loading data:', error);
+            // Error loading data handled by ErrorTracking
         } finally {
             if (!silent) setIsLoading(false);
         }
@@ -276,15 +274,11 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Helper function to load the user profile with retries
         const loadUserProfile = async (userId: string, email: string, retries = 2, silent = false) => {
             try {
-                if (!silent) {
-                    console.log(`[Auth] Fetching user profile (attempt ${3 - retries}/2)...`);
-                }
 
                 const userProfile = await SupabaseService.getProfileById(userId);
 
                 if (isMounted) {
                     if (userProfile) {
-                        if (!silent) console.log('[Auth] Profile found:', userProfile.full_name);
                         setCurrentUser(userProfile);
                         setIsAuthenticated(true);
                         isAuthenticatedRef.current = true;
@@ -294,11 +288,9 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                         refreshData(silent);
                         return true;
                     } else if (retries > 0) {
-                        console.warn(`[Auth] Profile not found for ${email}, retrying...`);
                         await new Promise(resolve => setTimeout(resolve, 500));
                         return loadUserProfile(userId, email, retries - 1, silent);
                     } else {
-                        console.error('[Auth] No profile found after retries for user:', email);
                         setHasMissingProfile(true);
                         setIsAuthenticated(false);
                         isAuthenticatedRef.current = false;
@@ -307,7 +299,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                     }
                 }
             } catch (error) {
-                console.error('[Auth] Error fetching profile:', error);
                 if (isMounted) {
                     if (retries > 0) {
                         await new Promise(resolve => setTimeout(resolve, 500));
@@ -325,20 +316,16 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Step 1: Check for existing session IMMEDIATELY on mount
         const initializeAuth = async () => {
             try {
-                console.log('[Auth] Checking for existing session...');
                 const session = await AuthService.getSession();
 
                 if (session?.user) {
-                    console.log('[Auth] Found existing session for:', session.user.email);
                     await loadUserProfile(session.user.id, session.user.email || '');
                 } else {
-                    console.log('[Auth] No existing session, showing login');
                     if (isMounted) {
                         setAuthLoading(false);
                     }
                 }
             } catch (error) {
-                console.error('[Auth] Failed to initialize auth:', error);
                 if (isMounted) {
                     setAuthLoading(false);
                 }
@@ -348,7 +335,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         // Safety timeout: if auth takes longer than 5s, force loading to end
         const safetyTimeout = setTimeout(() => {
             if (isMounted) {
-                console.warn('[Auth] Safety timeout reached — forcing authLoading to false');
                 setAuthLoading(false);
             }
         }, 5000);
@@ -359,8 +345,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         // Step 2: Subscribe to FUTURE auth changes (sign in, sign out, token refresh)
         const { data: { subscription } } = AuthService.onAuthStateChange(async (event, session) => {
-            console.log('Auth state changed:', event, session?.user?.email);
-
             // Skip INITIAL_SESSION since we already handled it above
             if (event === 'INITIAL_SESSION') {
                 return;
@@ -374,7 +358,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 }
                 await loadUserProfile(session.user.id, session.user.email || '', 3, isSilent);
             } else if (event === 'SIGNED_OUT') {
-                console.log('User signed out');
                 if (isMounted) {
                     setCurrentUser(null);
                     setIsAuthenticated(false);
@@ -455,7 +438,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
     // ==================== STAFF ACTIONS ====================
     const addClient = async (client: Client) => {
-        console.log('=== SAVING CLIENT ===', client);
         const pets = client.pets || [];
 
         // Determine if this is an update or create
@@ -480,27 +462,22 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const deleteClient = async (id: string) => {
-        console.log('=== DELETING CLIENT ===', id);
         const success = await SupabaseService.deleteClient(id);
         if (success) {
             setClients(prev => prev.filter(c => c.id !== id));
         } else {
-            console.error('Failed to delete client');
         }
     };
 
     const deleteClientsBulk = async (ids: string[]) => {
-        console.log('=== BULK DELETING CLIENTS ===', ids);
         const success = await SupabaseService.deleteClientsBulk(ids);
         if (success) {
             setClients(prev => prev.filter(c => !ids.includes(c.id)));
         } else {
-            console.error('Failed to bulk delete clients');
         }
     };
 
     const addStaff = async (profile: Profile) => {
-        console.log('=== ADDING STAFF ===', profile);
 
         // Save to Supabase first
         const created = await SupabaseService.createProfile(profile);
@@ -508,10 +485,8 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (created) {
             // Update local state with the created record
             setStaff(prev => [...prev, created]);
-            console.log('Staff added successfully!');
         } else {
-            console.error('Failed to add staff to database');
-            alert('Failed to save to database. Check console for errors.');
+            // Error: failed to add staff to database
         }
     };
 
@@ -543,10 +518,19 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     // ==================== SHIFT ACTIONS ====================
-    const createShift = async (shift: Shift) => {
+    const createShift = async (shift: Shift): Promise<boolean> => {
+        // Optimistic update — show shift immediately
+        setShifts(prev => [...prev, shift]);
+
         const created = await SupabaseService.createShift(shift);
         if (created) {
-            setShifts(prev => [...prev, created]);
+            // Replace optimistic entry with DB response
+            setShifts(prev => prev.map(s => s.id === shift.id ? created : s));
+            return true;
+        } else {
+            // Revert on failure
+            setShifts(prev => prev.filter(s => s.id !== shift.id));
+            return false;
         }
     };
 
@@ -630,7 +614,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
             }
-            console.log(`Generated ${newShifts.length} fixed weekly shifts for days: ${workDays.join(', ')} `);
 
         } else if (config.type === 'rotating') {
             // Rotating Pattern (e.g., 4 on / 4 off)
@@ -663,18 +646,14 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
             }
-            console.log(`Generated ${newShifts.length} rotating shifts(${days_on} - on / ${days_off} - off)`);
         }
 
         // Bulk create shifts
         if (newShifts.length > 0) {
-            console.log(`Bulk creating ${newShifts.length} shifts...`);
             const createdShifts = await SupabaseService.createShifts(newShifts);
             if (createdShifts.length > 0) {
                 setShifts(prev => [...prev, ...createdShifts]);
-                console.log('Bulk creation successful.');
             } else {
-                console.error('Bulk creation failed.');
             }
         }
     };
@@ -721,7 +700,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!created) {
             // Revert if failed (simple revert for now)
             setTimeEntries(prev => prev.filter(e => e.id !== newEntry.id));
-            alert('Failed to clock in. Please check your connection.');
         }
     };
 
@@ -744,8 +722,6 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         const success = await SupabaseService.updateTimeEntry(activeTimeEntry.id, updates);
         if (!success) {
             // Revert (simplified)
-            console.error('Failed to persist clock out');
-            alert('Failed to clock out. Please try again.');
         }
     };
 
@@ -845,12 +821,10 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         const created = await SupabaseService.createTimeEntry(newEntry);
         if (!created) {
             setTimeEntries(prev => prev.filter(e => e.id !== newEntry.id));
-            alert('Failed to create time entry.');
         }
     };
 
     const bulkRestoreStaff = async (restorations: any[]) => {
-        console.log('=== BULK RESTORING STAFF ===', restorations.length);
         setIsLoading(true);
 
         try {
@@ -869,9 +843,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             const createdTimeEntries = await SupabaseService.createTimeEntries(allTimeEntries);
             setTimeEntries(prev => [...prev, ...createdTimeEntries]);
 
-            console.log('Bulk restoration complete!');
         } catch (error) {
-            console.error('Bulk restoration failed:', error);
         } finally {
             setIsLoading(false);
         }

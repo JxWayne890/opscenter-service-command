@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
-import { X, Clock, User, Briefcase, Calendar, ArrowRightLeft, Trash2 } from 'lucide-react';
+import { X, Clock, User, Briefcase, Calendar, ArrowRightLeft, Trash2, AlertTriangle } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { Shift, Profile, ShiftSwap } from '../../types';
 import { isManager } from '../../services/permissions';
 import AnalogTimePicker from '../ui/AnalogTimePicker';
 import CustomSelect from '../ui/CustomSelect';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { detectConflicts } from '../../utils/scheduling-conflicts';
+import { ScheduleConflict } from '../../types';
 
 interface ShiftModalProps {
     isOpen: boolean;
@@ -17,7 +19,7 @@ interface ShiftModalProps {
 }
 
 const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, defaultDate, defaultUserId }) => {
-    const { staff, shifts, currentUser, createShift, updateShift, deleteShift, offerShift } = useOpsCenter();
+    const { staff, shifts, currentUser, createShift, updateShift, deleteShift, offerShift, requests } = useOpsCenter();
     const [userId, setUserId] = useState<string>(defaultUserId || '');
     const [roleType, setRoleType] = useState('Staff');
     const [startTime, setStartTime] = useState('');
@@ -27,6 +29,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
     const [error, setError] = useState<string | null>(null);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showSwapConfirm, setShowSwapConfirm] = useState(false);
+    const [conflicts, setConflicts] = useState<ScheduleConflict[]>([]);
     const canManage = isManager(currentUser);
     useEscapeKey(onClose, isOpen);
 
@@ -61,6 +64,31 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
             setShowSwapConfirm(false);
         }
     }, [isOpen, editShift, defaultUserId]);
+
+    // Detect conflicts when user or times change
+    useEffect(() => {
+        if (!isOpen || isOpenShift || !userId || !startTime || !endTime) {
+            setConflicts([]);
+            return;
+        }
+
+        const baseDate = editShift ? new Date(editShift.start_time) : (defaultDate || new Date());
+        const start = new Date(baseDate);
+        const [sh, sm] = startTime.split(':').map(Number);
+        start.setHours(sh, sm, 0, 0);
+
+        const end = new Date(baseDate);
+        const [eh, em] = endTime.split(':').map(Number);
+        end.setHours(eh, em, 0, 0);
+        if (end < start) end.setDate(end.getDate() + 1);
+
+        const detected = detectConflicts(
+            { user_id: userId, start_time: start.toISOString(), end_time: end.toISOString(), id: editShift?.id },
+            shifts,
+            requests || [],
+        );
+        setConflicts(detected);
+    }, [isOpen, userId, startTime, endTime, isOpenShift, shifts, editShift, defaultDate, requests]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -138,13 +166,17 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
 
         if (editShift) {
             await updateShift(editShift.id, shiftData);
+            onClose();
         } else {
             shiftData.id = crypto.randomUUID();
-            shiftData.status = 'published'; // Auto-publish for now to match flow
-            await createShift(shiftData);
+            shiftData.status = 'published';
+            const success = await createShift(shiftData);
+            if (success) {
+                onClose();
+            } else {
+                setError('Failed to create shift. Please check your connection and try again.');
+            }
         }
-
-        onClose();
     };
 
     const handleSwapOffer = async () => {
@@ -202,6 +234,24 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                     <div className="mb-6 p-4 bg-rose-50/50 backdrop-blur-sm border border-rose-100 rounded-2xl flex items-start gap-3 animate-in fade-in slide-in-from-top-2">
                         <User size={20} className="text-rose-500 flex-shrink-0 mt-0.5" />
                         <p className="text-sm font-medium text-rose-700">{error}</p>
+                    </div>
+                )}
+
+                {conflicts.length > 0 && (
+                    <div className="mb-6 space-y-2 animate-in fade-in slide-in-from-top-2">
+                        {conflicts.map((c, i) => (
+                            <div key={i} className={`p-3 rounded-2xl flex items-start gap-3 border ${c.severity === 'error' ? 'bg-rose-50/50 border-rose-100' : 'bg-amber-50/50 border-amber-100'}`}>
+                                <AlertTriangle size={16} className={`flex-shrink-0 mt-0.5 ${c.severity === 'error' ? 'text-rose-500' : 'text-amber-500'}`} />
+                                <div>
+                                    <div className={`text-xs font-bold uppercase tracking-wide ${c.severity === 'error' ? 'text-rose-600' : 'text-amber-600'}`}>
+                                        {c.type.replace('_', ' ')}
+                                    </div>
+                                    <p className={`text-xs font-medium ${c.severity === 'error' ? 'text-rose-500' : 'text-amber-500'}`}>
+                                        {c.message}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
 

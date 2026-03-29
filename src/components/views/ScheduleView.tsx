@@ -1,18 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Users, Filter, Save, Trash2, RefreshCw, Briefcase, Clock, Search, MoreHorizontal } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
-import { Shift, Profile } from '../../types';
+import { Shift, Profile, CoverageRequirement } from '../../types';
 import SectionCard from '../SectionCard';
 import ShiftModal from '../scheduling/ShiftModal';
 import { StaffDetailModal } from '../staff/StaffDetailModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { useToast } from '../ui/Toast';
+import { ErrorTracking } from '../../services/errorTracking';
+import { usePageTitle } from '../../hooks/usePageTitle';
+import TemplatePanel from '../scheduling/TemplatePanel';
+import CoverageBar from '../scheduling/CoverageBar';
+import ShiftExchangeBoard from '../scheduling/ShiftExchangeBoard';
+import BulkShiftActions from '../scheduling/BulkShiftActions';
+import { useUndoStack } from '../../hooks/useUndoStack';
+import { ArrowRightLeft, Undo2 } from 'lucide-react';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const ScheduleView = () => {
-    const { shifts, staff, publishSchedule, updateShift, deleteShift, currentUser, generateShiftsFromPattern } = useOpsCenter();
+    const { shifts, staff, publishSchedule, updateShift, deleteShift, createShift, currentUser, generateShiftsFromPattern, organization, requests } = useOpsCenter();
+    const { showToast } = useToast();
+    const { push: pushUndo, undo, canUndo, lastAction } = useUndoStack();
+    usePageTitle('Schedule');
 
     // Helper for role-based colors
     const getRoleColors = (role: string = 'Staff') => {
@@ -49,6 +61,41 @@ const ScheduleView = () => {
     // Dropdown State
     const [isAddStaffDropdownOpen, setIsAddStaffDropdownOpen] = useState(false);
 
+    // Shift Exchange Board
+    const [isExchangeOpen, setIsExchangeOpen] = useState(false);
+
+    // Multi-select State
+    const [selectedShiftIds, setSelectedShiftIds] = useState<Set<string>>(new Set());
+
+    // Coverage requirements (stored in state, could be DB-backed later)
+    const [coverageRequirements] = useState<CoverageRequirement[]>([]);
+
+    const handleMultiSelect = (shiftId: string, e: React.MouseEvent) => {
+        if (e.metaKey || e.ctrlKey) {
+            e.stopPropagation();
+            setSelectedShiftIds(prev => {
+                const next = new Set(prev);
+                if (next.has(shiftId)) next.delete(shiftId);
+                else next.add(shiftId);
+                return next;
+            });
+            return true;
+        }
+        return false;
+    };
+
+    const handleApplyTemplate = async (templateShifts: Omit<Shift, 'profile'>[]) => {
+        for (const shift of templateShifts) {
+            await createShift(shift as Shift);
+        }
+        showToast(`Applied ${templateShifts.length} shifts from template`);
+    };
+
+    const handleUndo = async () => {
+        const desc = await undo();
+        if (desc) showToast(`Undone: ${desc}`);
+    };
+
     const handleOpenStaffModal = (staffId: string | null) => {
         setSelectedStaffId(staffId);
         setStaffModalOpen(true);
@@ -71,12 +118,63 @@ const ScheduleView = () => {
 
     const weekDates = getWeekDates(new Date(currentWeekStart));
 
+    // Consistent date key format (avoids locale/timezone edge cases)
+    const toDateKey = (d: Date | string): string => {
+        const date = typeof d === 'string' ? new Date(d) : d;
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+    };
+
+    // O(1) shift lookup map: shiftMap[staffId || 'open'][YYYY-MM-DD] = Shift[]
+    const shiftMap = useMemo(() => {
+        const map: Record<string, Record<string, Shift[]>> = {};
+        for (const shift of shifts) {
+            const key = shift.is_open ? '__open__' : (shift.user_id || '__open__');
+            const dateStr = toDateKey(shift.start_time);
+            if (!map[key]) map[key] = {};
+            if (!map[key][dateStr]) map[key][dateStr] = [];
+            map[key][dateStr].push(shift);
+        }
+        return map;
+    }, [shifts]);
+
+    // Helper to get shifts from the map
+    const getShiftsForUserDate = (userId: string | undefined, date: Date): Shift[] => {
+        const key = userId || '__open__';
+        const dateStr = toDateKey(date);
+        return shiftMap[key]?.[dateStr] || [];
+    };
+
+    // Helper to get all shifts for a date
+    const getShiftsForDate = (date: Date): Shift[] => {
+        const dateStr = toDateKey(date);
+        const result: Shift[] = [];
+        for (const key in shiftMap) {
+            if (shiftMap[key][dateStr]) {
+                result.push(...shiftMap[key][dateStr]);
+            }
+        }
+        return result;
+    };
+
+    // Helper: weekly hours for a staff member
+    const getWeeklyHours = (userId: string): number => {
+        let total = 0;
+        for (const date of weekDates) {
+            const dayShifts = getShiftsForUserDate(userId, date);
+            dayShifts.forEach(s => {
+                const ms = new Date(s.end_time).getTime() - new Date(s.start_time).getTime();
+                total += ms / 3600000;
+            });
+        }
+        return total;
+    };
+
     // Mobile State
     const [selectedDate, setSelectedDate] = useState(new Date());
 
     const handlePublish = async () => {
         await publishSchedule();
-        alert('Schedule Published!');
+        showToast('Schedule published successfully!');
     };
 
     // Repeat/Extend Schedule for all staff with schedule patterns
@@ -84,32 +182,32 @@ const ScheduleView = () => {
     const handleRepeatSchedule = async () => {
         setIsRepeating(true);
         try {
-            // Generate shifts for each staff member with a schedule config
-            for (const member of staff) {
-                if (member.schedule_config && (member.schedule_config.type === 'fixed' || member.schedule_config.type === 'rotating')) {
-                    // Find the latest shift for THIS specific user
-                    const userShifts = shifts.filter(s => s.user_id === member.id);
+            const promises = staff
+                .filter(member => member.schedule_config && (member.schedule_config.type === 'fixed' || member.schedule_config.type === 'rotating'))
+                .map(member => {
+                    const userShifts = getShiftsForUserDate(member.id, new Date()) || [];
+                    // Get all shifts for this user across all dates
+                    const allUserShifts = shifts.filter(s => s.user_id === member.id);
                     let fromDate: Date | undefined;
 
-                    if (userShifts.length > 0) {
-                        // Find the latest end date among this user's shifts
-                        const latestShiftDate = userShifts.reduce((latest, shift) => {
+                    if (allUserShifts.length > 0) {
+                        const latestShiftDate = allUserShifts.reduce((latest, shift) => {
                             const endDate = new Date(shift.end_time);
                             return endDate > latest ? endDate : latest;
                         }, new Date(0));
 
-                        // Start generating from the day AFTER the latest shift
                         fromDate = new Date(latestShiftDate);
                         fromDate.setDate(fromDate.getDate() + 1);
                     }
 
-                    await generateShiftsFromPattern(member.id, member.schedule_config, 4, fromDate);
-                }
-            }
-            alert('Schedule extended for the next 4 weeks!');
+                    return generateShiftsFromPattern(member.id, member.schedule_config!, 4, fromDate);
+                });
+
+            await Promise.all(promises);
+            showToast('Schedule extended for the next 4 weeks!');
         } catch (error) {
-            console.error('Error repeating schedule:', error);
-            alert('Failed to extend schedule. Please try again.');
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'Schedule repeat' });
+            showToast('Failed to extend schedule. Please try again.', 'error');
         } finally {
             setIsRepeating(false);
         }
@@ -195,12 +293,7 @@ const ScheduleView = () => {
 
     // Filter shifts for mobile day view
     const getMobileShifts = (date: Date) => {
-        return shifts.filter(s => {
-            const sDate = new Date(s.start_time);
-            return sDate.getDate() === date.getDate() &&
-                sDate.getMonth() === date.getMonth() &&
-                sDate.getFullYear() === date.getFullYear();
-        }).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+        return getShiftsForDate(date).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
     };
 
     const mobileShifts = getMobileShifts(selectedDate);
@@ -238,6 +331,16 @@ const ScheduleView = () => {
                     staffId={selectedStaffId}
                 />
 
+                {/* Shift Exchange Board */}
+                <ShiftExchangeBoard isOpen={isExchangeOpen} onClose={() => setIsExchangeOpen(false)} />
+
+                {/* Bulk Shift Actions */}
+                <BulkShiftActions
+                    selectedShiftIds={selectedShiftIds}
+                    onClearSelection={() => setSelectedShiftIds(new Set())}
+                    onUndoAction={pushUndo}
+                />
+
                 {/* Trash Delete Confirmation */}
                 <ConfirmDialog
                     isOpen={showTrashConfirm}
@@ -254,7 +357,7 @@ const ScheduleView = () => {
                     {/* Mobile Header */}
                     <div className="flex items-center justify-between mb-6 px-1">
                         <div>
-                            <h2 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Schedule</h2>
+                            <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Schedule</h1>
                             <p className="text-slate-500 font-medium text-sm">Tap date to navigate</p>
                         </div>
                         <div className="glass-panel px-1 py-1 rounded-2xl flex items-center shadow-lg shadow-indigo-500/10">
@@ -269,7 +372,7 @@ const ScheduleView = () => {
                                 <ChevronLeft size={20} />
                             </button>
                             <div className="px-2 flex flex-col items-center justify-center min-w-[80px]">
-                                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider">
+                                <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
                                     {selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}
                                 </span>
                                 <span className="text-lg font-display font-bold text-slate-900 leading-none">
@@ -301,7 +404,7 @@ const ScheduleView = () => {
                                 </div>
                                 <div className="relative z-10 p-6 text-white">
                                     <div className="flex justify-between items-start mb-6">
-                                        <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-[10px] font-bold uppercase tracking-wider border border-white/10">
+                                        <span className="inline-block px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold uppercase tracking-wider border border-white/10">
                                             My Shift Today
                                         </span>
                                         <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
@@ -322,12 +425,12 @@ const ScheduleView = () => {
                                     <div className="flex items-center gap-4 pt-6 border-t border-white/10">
                                         <div>
                                             <div className="text-2xl font-bold">{TimeMath.formatDecimalHours(TimeMath.msToDecimalHours(new Date(myMobileShift.end_time).getTime() - new Date(myMobileShift.start_time).getTime()))}</div>
-                                            <div className="text-[10px] uppercase font-bold text-indigo-200">Duration</div>
+                                            <div className="text-xs uppercase font-bold text-indigo-200">Duration</div>
                                         </div>
                                         <div className="w-px h-8 bg-white/10"></div>
                                         <div>
                                             <div className="text-sm font-bold">{myMobileShift.role_type}</div>
-                                            <div className="text-[10px] uppercase font-bold text-indigo-200">Role</div>
+                                            <div className="text-xs uppercase font-bold text-indigo-200">Role</div>
                                         </div>
                                     </div>
                                 </div>
@@ -390,11 +493,11 @@ const ScheduleView = () => {
                                                         <h4 className="text-sm font-bold text-slate-900 truncate pr-2">
                                                             {user?.full_name}
                                                         </h4>
-                                                        <span className="text-[10px] font-bold text-slate-500 bg-slate-100/80 px-2 py-1 rounded-lg">
+                                                        <span className="text-xs font-bold text-slate-500 bg-slate-100/80 px-2 py-1 rounded-lg">
                                                             {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase()} - {new Date(shift.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).replace(' ', '').toLowerCase()}
                                                         </span>
                                                     </div>
-                                                    <p className={`text-[10px] font-bold ${colors.text} uppercase tracking-wide`}>{shift.role_type}</p>
+                                                    <p className={`text-xs font-bold ${colors.text} uppercase tracking-wide`}>{shift.role_type}</p>
                                                 </div>
                                             </div>
                                         );
@@ -495,6 +598,40 @@ const ScheduleView = () => {
                                 </div>
                             )}
 
+                            {/* Shift Exchange */}
+                            <button
+                                onClick={() => setIsExchangeOpen(true)}
+                                className="flex items-center justify-center w-10 h-10 bg-white border border-slate-200 text-slate-400 rounded-xl hover:text-orange-500 hover:border-orange-200 transition-all"
+                                title="Shift Exchange Board"
+                            >
+                                <ArrowRightLeft size={18} />
+                            </button>
+
+                            {/* Undo */}
+                            {canUndo && (
+                                <button
+                                    onClick={handleUndo}
+                                    className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 hover:shadow-sm transition-all"
+                                    title={`Undo: ${lastAction}`}
+                                >
+                                    <Undo2 size={16} className="text-slate-500" />
+                                    <span>Undo</span>
+                                </button>
+                            )}
+
+                            {/* Templates */}
+                            {canManageSchedule && (
+                                <div className="relative">
+                                    <TemplatePanel
+                                        weekStart={currentWeekStart}
+                                        shifts={shifts}
+                                        organizationId={organization?.id || ''}
+                                        userId={currentUser?.id || ''}
+                                        onApplyTemplate={handleApplyTemplate}
+                                    />
+                                </div>
+                            )}
+
                             {/* Publish Button */}
                             {canManageSchedule && (
                                 <button onClick={handlePublish} className="flex items-center space-x-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 hover:-translate-y-0.5 transition-all">
@@ -555,7 +692,7 @@ const ScheduleView = () => {
                                                             <img src={user.avatar_url} alt={user.full_name} className="w-8 h-8 rounded-full object-cover shadow-sm" />
                                                             <div>
                                                                 <div className="text-sm font-bold text-slate-900">{user.full_name}</div>
-                                                                <div className="text-[10px] text-slate-400 uppercase">{user.role}</div>
+                                                                <div className="text-xs text-slate-400 uppercase">{user.role}</div>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -569,10 +706,11 @@ const ScheduleView = () => {
                                         const isToday = date.toDateString() === new Date().toDateString();
                                         return (
                                             <div key={i} className={`p-3 text-center transition-colors ${isToday ? 'bg-indigo-50/30' : ''}`}>
-                                                <div className="text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">{DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1]}</div>
+                                                <div className="text-xs font-bold text-slate-400 uppercase mb-1 tracking-wider">{DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1]}</div>
                                                 <div className={`flex items-center justify-center mx-auto w-8 h-8 rounded-full text-lg font-bold font-display ${isToday ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-700'}`}>
                                                     {date.getDate()}
                                                 </div>
+                                                <CoverageBar date={date} shifts={getShiftsForDate(date)} requirements={coverageRequirements} />
                                             </div>
                                         );
                                     })}
@@ -588,11 +726,11 @@ const ScheduleView = () => {
                                             </div>
                                             <div>
                                                 <div className="font-bold text-slate-600 text-sm">Open Shifts</div>
-                                                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Unassigned</div>
+                                                <div className="text-xs font-bold text-slate-400 uppercase tracking-wide">Unassigned</div>
                                             </div>
                                         </div>
                                         {weekDates.map((date, i) => {
-                                            const dayShifts = shifts.filter(s => s.is_open && new Date(s.start_time).toDateString() === date.toDateString());
+                                            const dayShifts = getShiftsForUserDate(undefined, date).filter(s => s.is_open);
                                             return (
                                                 <div
                                                     key={i}
@@ -609,11 +747,11 @@ const ScheduleView = () => {
                                                                     draggable
                                                                     onDragStart={(e) => handleDragStart(e, shift.id)}
                                                                     onDragEnd={handleDragEnd}
-                                                                    onClick={(e) => { e.stopPropagation(); handleEditShift(shift, e); }}
-                                                                    className="bg-white border-2 border-dashed border-slate-200 text-slate-600 p-2.5 rounded-xl cursor-pointer hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/5 transition-all group/shift pointer-events-auto shadow-sm"
+                                                                    onClick={(e) => { e.stopPropagation(); if (!handleMultiSelect(shift.id, e)) handleEditShift(shift, e); }}
+                                                                    className={`bg-white border-2 border-dashed text-slate-600 p-2.5 rounded-xl cursor-pointer hover:border-indigo-400 hover:shadow-lg hover:shadow-indigo-500/5 transition-all group/shift pointer-events-auto shadow-sm ${selectedShiftIds.has(shift.id) ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200'}`}
                                                                 >
                                                                     <div className="flex justify-between items-start mb-1">
-                                                                        <span className="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
+                                                                        <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
                                                                             {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()}
                                                                         </span>
                                                                     </div>
@@ -645,13 +783,14 @@ const ScheduleView = () => {
                                                     </div>
                                                     <div className="cursor-pointer group/name overflow-hidden" onClick={() => handleOpenStaffModal(user.id)}>
                                                         <div className="font-bold text-slate-700 text-sm group-hover/name:text-indigo-600 truncate transition-colors">{user.full_name}</div>
-                                                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide truncate">{user.role}</div>
+                                                        <div className="text-xs font-bold text-slate-400 uppercase tracking-wide truncate">{user.role}</div>
+                                                        <div className="text-[10px] font-black text-indigo-500 mt-0.5">{getWeeklyHours(user.id).toFixed(1)}h/wk</div>
                                                     </div>
                                                 </div>
 
                                                 {/* Days Cells */}
                                                 {weekDates.map((date, i) => {
-                                                    const dayShifts = shifts.filter(s => s.user_id === user.id && new Date(s.start_time).toDateString() === date.toDateString());
+                                                    const dayShifts = getShiftsForUserDate(user.id, date);
                                                     const hasShifts = dayShifts.length > 0;
                                                     const firstShift = dayShifts[0];
                                                     const colors = firstShift ? getRoleColors(firstShift.role_type) : null;
@@ -666,8 +805,15 @@ const ScheduleView = () => {
                                                         >
                                                             <div className={`h-full w-full rounded-2xl border transition-all p-1 ${hasShifts ? 'border-transparent' : 'border-transparent group-hover:border-slate-200/50 group-hover:bg-white/40'}`}>
                                                                 {!hasShifts && (
-                                                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-20 transition-opacity pointer-events-none">
-                                                                        <Plus size={32} className="text-slate-400" />
+                                                                    <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                                                        {canManageSchedule ? (
+                                                                            <div className="opacity-0 group-hover:opacity-40 transition-opacity flex flex-col items-center">
+                                                                                <Plus size={20} className="text-slate-400 mb-0.5" />
+                                                                                <span className="text-[9px] font-bold text-slate-400 uppercase">Add Shift</span>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className="text-[10px] font-bold text-slate-300 uppercase">OFF</span>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                                 <div className="space-y-2 pointer-events-none">
@@ -679,26 +825,26 @@ const ScheduleView = () => {
                                                                                 draggable
                                                                                 onDragStart={(e) => handleDragStart(e, shift.id)}
                                                                                 onDragEnd={handleDragEnd}
-                                                                                onClick={(e) => { e.stopPropagation(); handleEditShift(shift, e); }}
-                                                                                className={`relative z-10 p-3 rounded-2xl cursor-pointer shadow-sm border transition-all pointer-events-auto group/card hover:shadow-md hover:-translate-y-0.5 ${shift.is_open
+                                                                                onClick={(e) => { e.stopPropagation(); if (!handleMultiSelect(shift.id, e)) handleEditShift(shift, e); }}
+                                                                                className={`relative z-10 p-3 rounded-2xl cursor-pointer shadow-sm border transition-all pointer-events-auto group/card hover:shadow-md hover:-translate-y-0.5 ${selectedShiftIds.has(shift.id) ? 'ring-2 ring-indigo-400 border-indigo-400' : ''} ${shift.is_open
                                                                                     ? 'bg-slate-100 border-slate-200 text-slate-600'
                                                                                     : `${shiftColors.card} ${shiftColors.border}`
                                                                                     }`}
                                                                             >
-                                                                                <div className="flex justify-between items-center mb-1.5">
+                                                                                <div className="flex justify-between items-center mb-1">
                                                                                     <div className="flex items-center gap-1.5">
-                                                                                        <div className={`w-2 h-2 rounded-full ${shift.is_open ? 'bg-slate-400' : shiftColors.dot}`}></div>
+                                                                                        <div className={`w-2 h-2 rounded-full ${shift.status === 'draft' ? 'bg-amber-400' : shift.status === 'approved' ? 'bg-blue-400' : shift.is_open ? 'bg-slate-400' : shiftColors.dot}`}></div>
                                                                                         <span className={`${shift.is_open ? 'text-slate-400' : shiftColors.text} text-[10px] font-black`}>
                                                                                             {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()}
+                                                                                            {' - '}
+                                                                                            {new Date(shift.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()}
                                                                                         </span>
                                                                                     </div>
-                                                                                    {!shift.is_open && (
-                                                                                        <div className="opacity-0 group-hover/card:opacity-100 transition-opacity">
-                                                                                            <MoreHorizontal size={12} className="text-slate-400" />
-                                                                                        </div>
-                                                                                    )}
+                                                                                    <span className={`text-[9px] font-black px-1 py-0.5 rounded ${shift.is_open ? 'bg-slate-200 text-slate-500' : 'bg-black/5 ' + shiftColors.text}`}>
+                                                                                        {((new Date(shift.end_time).getTime() - new Date(shift.start_time).getTime()) / 3600000).toFixed(1)}h
+                                                                                    </span>
                                                                                 </div>
-                                                                                <div className={`text-xs font-black leading-tight tracking-tight uppercase ${shift.is_open ? 'text-slate-500' : shiftColors.text}`}>
+                                                                                <div className={`text-[10px] font-black leading-tight tracking-tight uppercase ${shift.is_open ? 'text-slate-500' : shiftColors.text}`}>
                                                                                     {shift.role_type}
                                                                                 </div>
                                                                             </div>
@@ -748,7 +894,7 @@ const ScheduleView = () => {
                                         }
 
                                         return calendarDays.map((cell, idx) => {
-                                            const dayShifts = shifts.filter(s => new Date(s.start_time).toDateString() === cell.date.toDateString());
+                                            const dayShifts = getShiftsForDate(cell.date);
                                             const isToday = cell.date.toDateString() === new Date().toDateString();
 
                                             return (
@@ -793,14 +939,14 @@ const ScheduleView = () => {
                                                                                     handleEditShift(shift, e);
                                                                                 }}
                                                                                 title={`${time} - ${fullName} (${shift.role_type})`}
-                                                                                className={`w-7 h-7 rounded-lg ${colorClass} text-white text-[10px] font-bold flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-md transition-all shadow-sm ${isRestricted ? 'opacity-30 pointer-events-none grayscale' : ''}`}
+                                                                                className={`w-7 h-7 rounded-lg ${colorClass} text-white text-xs font-bold flex items-center justify-center cursor-pointer hover:scale-110 hover:shadow-md transition-all shadow-sm ${isRestricted ? 'opacity-30 pointer-events-none grayscale' : ''}`}
                                                                             >
                                                                                 {initials}
                                                                             </div>
                                                                         );
                                                                     })}
                                                                     {extraCount > 0 && (
-                                                                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-bold flex items-center justify-center border border-slate-200">
+                                                                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 text-xs font-bold flex items-center justify-center border border-slate-200">
                                                                             +{extraCount}
                                                                         </div>
                                                                     )}
@@ -823,7 +969,7 @@ const ScheduleView = () => {
                                     <div className="sticky left-0 z-30 bg-white/95 backdrop-blur w-20 flex-shrink-0 border-r border-slate-100 shadow-sm">
                                         <div className="h-14 border-b border-slate-100 bg-slate-50/80 sticky top-0 z-40"></div>
                                         {Array.from({ length: 24 }).map((_, i) => (
-                                            <div key={i} className="h-24 border-b border-slate-50 text-[10px] font-bold text-slate-400 text-center pt-2 relative">
+                                            <div key={i} className="h-24 border-b border-slate-50 text-xs font-bold text-slate-400 text-center pt-2 relative">
                                                 <span className="-translate-y-1/2 block bg-white/80 px-1 rounded mx-auto w-fit">
                                                     {i === 0 ? '12 AM' : i < 12 ? `${i} AM` : i === 12 ? '12 PM' : `${i - 12} PM`}
                                                 </span>
@@ -835,10 +981,9 @@ const ScheduleView = () => {
                                     {['Unassigned', ...(canManageSchedule ? staff.map(s => s.full_name) : staff.filter(s => s.id === currentUser.id).map(s => s.full_name))].map((name, i) => {
                                         const isStaff = i > 0;
                                         const staffId = isStaff ? (canManageSchedule ? staff[i - 1].id : currentUser.id) : undefined;
-                                        const relevantShifts = shifts.filter(s =>
-                                            new Date(s.start_time).toDateString() === currentWeekStart.toDateString() &&
-                                            (isStaff ? s.user_id === staffId : s.is_open)
-                                        );
+                                        const relevantShifts = isStaff
+                                            ? getShiftsForUserDate(staffId, currentWeekStart)
+                                            : getShiftsForUserDate(undefined, currentWeekStart).filter(s => s.is_open);
 
                                         const isRestricted = !canManageSchedule && (isStaff ? staffId !== currentUser.id : true);
 
@@ -885,7 +1030,7 @@ const ScheduleView = () => {
                                                                     <Clock size={12} className="opacity-50" />
                                                                     <span>{start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - {end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                                                                 </div>
-                                                                <div className="opacity-75 text-[10px] uppercase tracking-wide truncate">{shift.role_type}</div>
+                                                                <div className="opacity-75 text-xs uppercase tracking-wide truncate">{shift.role_type}</div>
                                                             </div>
                                                         );
                                                     })}
