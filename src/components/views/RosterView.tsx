@@ -441,7 +441,7 @@ const RosterView = () => {
                                         className="bg-white border border-slate-100 rounded-2xl p-4 flex items-center space-x-4 shadow-sm active:scale-[0.99] transition-transform cursor-pointer hover:border-indigo-100"
                                     >
                                         <div className="relative">
-                                            <img src={user.avatar_url} alt={user.full_name} className="w-12 h-12 rounded-full object-cover border-2 border-slate-50" />
+                                            <img src={user.avatar_url} alt={user.full_name} loading="lazy" className="w-12 h-12 rounded-full object-cover border-2 border-slate-50" />
                                             <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white rounded-full ${isClockedIn ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
                                         </div>
 

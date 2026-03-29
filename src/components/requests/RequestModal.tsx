@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Calendar, FileText } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { TimeOffRequest } from '../../types';
 
 interface RequestModalProps {
@@ -10,6 +11,7 @@ interface RequestModalProps {
 
 const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose }) => {
     const { currentUser, submitTimeOff } = useOpsCenter();
+    useEscapeKey(onClose, isOpen);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [type, setType] = useState<'paid' | 'unpaid' | 'sick' | 'holiday'>('unpaid');

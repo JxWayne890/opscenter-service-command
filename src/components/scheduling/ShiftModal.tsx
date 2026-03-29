@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { X, Clock, User, Briefcase, Calendar, ArrowRightLeft, Trash2 } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { Shift, Profile, ShiftSwap } from '../../types';
@@ -27,6 +28,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [showSwapConfirm, setShowSwapConfirm] = useState(false);
     const canManage = isManager(currentUser);
+    useEscapeKey(onClose, isOpen);
 
     useEffect(() => {
         if (isOpen) {
@@ -191,7 +193,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                             {editShift ? 'Update shift details' : 'Schedule a new work shift'}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                    <button onClick={onClose} aria-label="Close shift modal" className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
                         <X size={24} />
                     </button>
                 </div>

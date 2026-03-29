@@ -252,6 +252,7 @@ const ClientsView: React.FC = () => {
                                                 <img
                                                     src={pet.avatar_url}
                                                     alt={pet.name}
+                                                    loading="lazy"
                                                     className="w-16 h-16 rounded-xl object-cover shadow-sm"
                                                 />
                                                 <div className="flex-1 min-w-0">
@@ -388,6 +389,8 @@ const ClientsView: React.FC = () => {
                                             <div className="bg-indigo-50/50 p-6 flex gap-6 items-start">
                                                 <img
                                                     src={pet.avatar_url}
+                                                    alt={pet.name}
+                                                    loading="lazy"
                                                     className="w-24 h-24 rounded-2xl object-cover shadow-lg ring-4 ring-white"
                                                 />
                                                 <div>

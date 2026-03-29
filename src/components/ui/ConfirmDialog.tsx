@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -22,6 +22,13 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
     cancelText = 'Cancel',
     variant = 'danger'
 }) => {
+    useEffect(() => {
+        if (!isOpen) return;
+        const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', handler);
+        return () => document.removeEventListener('keydown', handler);
+    }, [isOpen, onClose]);
+
     if (!isOpen) return null;
 
     const variantStyles = {
@@ -54,6 +61,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 {/* Close button */}
                 <button
                     onClick={onClose}
+                    aria-label="Close dialog"
                     className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                 >
                     <X size={20} />

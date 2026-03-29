@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Clock, User, Calendar, Save, Trash2 } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
+import { useEscapeKey } from '../../hooks/useEscapeKey';
 import { TimeEntry } from '../../types';
 import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
@@ -26,6 +27,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const canManage = isManager(currentUser);
+    useEscapeKey(onClose, isOpen);
 
     useEffect(() => {
         if (isOpen) {
@@ -137,7 +139,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
                                 <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Timesheet Management</p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="p-3 hover:bg-white hover:shadow-md rounded-2xl text-slate-400 hover:text-slate-600 transition-all">
+                        <button onClick={onClose} aria-label="Close time entry modal" className="p-3 hover:bg-white hover:shadow-md rounded-2xl text-slate-400 hover:text-slate-600 transition-all">
                             <X size={20} />
                         </button>
                     </div>

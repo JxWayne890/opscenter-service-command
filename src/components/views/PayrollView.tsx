@@ -446,7 +446,7 @@ const PayrollView = () => {
                                     <td className="p-4">
                                         <div className="flex items-center gap-3">
                                             {employee.avatar_url ? (
-                                                <img src={employee.avatar_url} className="w-8 h-8 rounded-full" />
+                                                <img src={employee.avatar_url} alt={employee.full_name} loading="lazy" className="w-8 h-8 rounded-full" />
                                             ) : (
                                                 <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center font-bold text-xs">
                                                     {employee.full_name[0]}
