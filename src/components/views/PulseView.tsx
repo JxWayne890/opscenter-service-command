@@ -8,12 +8,23 @@ import { isManager } from '../../services/permissions';
 import ShiftCompletionWidget from '../dashboard/ShiftCompletionWidget';
 import LiveRosterDetailModal from '../dashboard/LiveRosterDetailModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
+import { buildOpsPilotReply, OPS_PILOT_SUGGESTIONS } from '../../services/opsPilot';
+
+interface PilotMessage {
+    id: string;
+    role: 'user' | 'assistant';
+    content: string;
+}
 
 const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) => {
     const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser } = useOpsCenter();
     const [currentTime, setCurrentTime] = React.useState(new Date());
     const [rosterFilter, setRosterFilter] = React.useState<'all' | 'manager' | 'staff'>('all');
     const [selectedStaffId, setSelectedStaffId] = React.useState<string | null>(null);
+    const [pilotInput, setPilotInput] = React.useState('');
+    const [pilotMessages, setPilotMessages] = React.useState<PilotMessage[]>([]);
+    const [isPilotTyping, setIsPilotTyping] = React.useState(false);
+    const pilotMessagesEndRef = React.useRef<HTMLDivElement>(null);
 
     // Confirmation State
     const [scheduleWarning, setScheduleWarning] = React.useState<{
@@ -30,6 +41,10 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
         const timer = setInterval(() => setCurrentTime(new Date()), 1000);
         return () => clearInterval(timer);
     }, []);
+
+    React.useEffect(() => {
+        pilotMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [pilotMessages, isPilotTyping]);
 
     // Calculate duration if clocked in
     const getDuration = () => {
@@ -112,6 +127,37 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
     const confirmScheduleClockIn = () => {
         clockIn({ lat: 34.05, lng: -118.24 });
         setScheduleWarning(prev => ({ ...prev, isOpen: false }));
+    };
+
+    const sendOpsPilotMessage = (prompt?: string) => {
+        const nextPrompt = prompt?.trim() || pilotInput.trim();
+        if (!nextPrompt || isPilotTyping) return;
+
+        const userMessage: PilotMessage = {
+            id: `user-${Date.now()}`,
+            role: 'user',
+            content: nextPrompt
+        };
+
+        setPilotMessages(prev => [...prev, userMessage]);
+        setPilotInput('');
+        setIsPilotTyping(true);
+
+        setTimeout(() => {
+            const assistantMessage: PilotMessage = {
+                id: `assistant-${Date.now()}`,
+                role: 'assistant',
+                content: buildOpsPilotReply(nextPrompt, {
+                    knowledgeBase,
+                    shifts,
+                    staff,
+                    timeEntries
+                })
+            };
+
+            setPilotMessages(prev => [...prev, assistantMessage]);
+            setIsPilotTyping(false);
+        }, 900);
     };
 
     return (
@@ -355,7 +401,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                 <div className="col-span-1 lg:col-span-4 flex flex-col gap-6">
 
                     {/* OpsPilot Visual */}
-                    <div className="glass-panel-dark p-6 rounded-[2rem] min-h-[300px] relative overflow-hidden flex flex-col justify-between group">
+                    <div className="glass-panel-dark p-6 rounded-[2rem] min-h-[420px] relative overflow-hidden flex flex-col group">
                         {/* Abstract BG */}
                         <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500 rounded-full blur-[60px] opacity-30 group-hover:opacity-40 transition-opacity" />
                         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500 rounded-full blur-[60px] opacity-30 group-hover:opacity-40 transition-opacity" />
@@ -372,27 +418,72 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                 <div className="w-1.5 h-1.5 bg-green-400 rounded-full shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
                             </div>
                             <p className="text-slate-400 text-sm font-medium leading-relaxed">
-                                System is monitoring operational metrics. No anomalies detected in the last hour.
+                                Ready to answer SOP and workflow questions from the Knowledge Hub, plus live roster and attendance checks.
                             </p>
                         </div>
 
-                        <div className="relative z-10 mt-6 space-y-3">
-                            <div className="space-y-2">
-                                {['Who is late for shift?', 'Summary of KB updates', 'Draft message to team'].map((q, i) => (
-                                    <button key={i} className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-medium text-slate-300 transition-colors flex items-center justify-between group/item">
-                                        <span>{q}</span>
-                                        <ArrowUpRight size={12} className="opacity-0 group-hover/item:opacity-100 transition-opacity" />
-                                    </button>
-                                ))}
+                        <div className="relative z-10 mt-6 flex-1 flex flex-col min-h-0">
+                            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                                {pilotMessages.length === 0 ? (
+                                    <div className="space-y-2">
+                                        {OPS_PILOT_SUGGESTIONS.map((q, i) => (
+                                            <button
+                                                key={i}
+                                                onClick={() => sendOpsPilotMessage(q)}
+                                                className="w-full text-left px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/5 rounded-xl text-xs font-medium text-slate-300 transition-colors flex items-center justify-between group/item"
+                                            >
+                                                <span>{q}</span>
+                                                <ArrowUpRight size={12} className="opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <>
+                                        {pilotMessages.map((message) => (
+                                            <div
+                                                key={message.id}
+                                                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                                            >
+                                                <div
+                                                    className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap border ${message.role === 'user'
+                                                        ? 'bg-indigo-600 text-white border-indigo-400/30 rounded-br-sm'
+                                                        : 'bg-white/10 text-slate-100 border-white/10 rounded-bl-sm'
+                                                        }`}
+                                                >
+                                                    {message.content}
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {isPilotTyping && (
+                                            <div className="flex justify-start">
+                                                <div className="bg-white/10 border border-white/10 px-4 py-3 rounded-2xl rounded-bl-sm flex items-center space-x-1">
+                                                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div ref={pilotMessagesEndRef} />
+                                    </>
+                                )}
                             </div>
 
-                            <div className="relative mt-2">
+                            <div className="relative mt-4 pt-4 border-t border-white/10">
                                 <input
                                     type="text"
+                                    value={pilotInput}
+                                    onChange={(e) => setPilotInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && sendOpsPilotMessage()}
                                     placeholder="Ask OpsPilot..."
                                     className="w-full bg-black/20 border border-white/10 rounded-xl py-3 pl-4 pr-10 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-500/50 transition-all"
                                 />
-                                <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-500 rounded-lg text-white hover:bg-indigo-400 transition-colors">
+                                <button
+                                    onClick={() => sendOpsPilotMessage()}
+                                    disabled={!pilotInput.trim() || isPilotTyping}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-indigo-500 rounded-lg text-white hover:bg-indigo-400 disabled:opacity-50 transition-colors"
+                                >
                                     <Send size={14} />
                                 </button>
                             </div>

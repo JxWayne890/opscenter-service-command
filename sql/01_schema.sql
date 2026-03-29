@@ -393,6 +393,38 @@ CREATE POLICY "Managers can manage pay stubs" ON pay_stubs
 CREATE POLICY "Staff can view their own released pay stubs" ON pay_stubs
   FOR SELECT USING (user_id = auth.uid() AND status = 'released');
 
+-- Knowledge Base: Staff can read, managers can manage
+DROP POLICY IF EXISTS "Staff can view knowledge entries" ON knowledge_entries;
+DROP POLICY IF EXISTS "Managers can manage knowledge entries" ON knowledge_entries;
+
+CREATE POLICY "Staff can view knowledge entries" ON knowledge_entries
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND organization_id = knowledge_entries.organization_id
+      AND role IN ('owner', 'manager', 'staff')
+    )
+  );
+
+CREATE POLICY "Managers can manage knowledge entries" ON knowledge_entries
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND organization_id = knowledge_entries.organization_id
+      AND role IN ('owner', 'manager')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND organization_id = knowledge_entries.organization_id
+      AND role IN ('owner', 'manager')
+    )
+  );
+
 -- =====================================================
 -- DONE! Database is ready.
 -- =====================================================

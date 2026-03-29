@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Profile, Shift, StaffingRatio, Invitation, Organization, TimeEntry, PayStub, Message, Client, Pet } from '../types';
+import { Profile, Shift, StaffingRatio, Invitation, Organization, TimeEntry, PayStub, Message, Client, Pet, KnowledgeEntry } from '../types';
 import { parsePhoneNumber } from '../utils/formatters';
 
 // Organization ID for the demo
@@ -25,19 +25,14 @@ export const SupabaseService = {
   },
 
   async getProfileById(userId: string): Promise<Profile | null> {
-    console.log('[DEBUG] getProfileById called with:', userId);
-
-    // Try raw fetch to bypass Supabase client
-    // Get URL and key from the supabase client's internal config
     const supabaseUrl = (supabase as any).supabaseUrl;
     const supabaseKey = (supabase as any).supabaseKey;
 
     const url = `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`;
-    console.log('[DEBUG] Fetching from URL:', url);
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const timeoutId = setTimeout(() => controller.abort(), 3000);
 
       const response = await fetch(url, {
         method: 'GET',
@@ -52,15 +47,12 @@ export const SupabaseService = {
 
       clearTimeout(timeoutId);
 
-      console.log('[DEBUG] Response status:', response.status);
-
       if (!response.ok) {
-        console.error('[DEBUG] Response error:', response.statusText);
+        console.error('[Auth] Profile fetch error:', response.statusText);
         return null;
       }
 
       const data = await response.json();
-      console.log('[DEBUG] Response data:', data);
 
       if (data && data.length > 0) {
         return data[0] as Profile;
@@ -68,9 +60,9 @@ export const SupabaseService = {
       return null;
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.error('[DEBUG] Request timed out after 5 seconds');
+        console.error('[Auth] Profile fetch timed out');
       } else {
-        console.error('[DEBUG] Fetch error:', err);
+        console.error('[Auth] Profile fetch error:', err);
       }
       return null;
     }
@@ -381,6 +373,22 @@ export const SupabaseService = {
     console.log('Organization fetched:', data);
     console.log('Invite code:', data?.invite_code);
     return data;
+  },
+
+  async getKnowledgeEntries(): Promise<KnowledgeEntry[]> {
+    console.log('Fetching knowledge entries from Supabase...');
+    const { data, error } = await supabase
+      .from('knowledge_entries')
+      .select('*')
+      .eq('organization_id', ORG_ID)
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching knowledge entries:', error);
+      return [];
+    }
+
+    return data || [];
   },
 
   async updateOrganization(id: string, updates: Partial<Organization>): Promise<boolean> {

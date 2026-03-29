@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { Shift, TimeEntry, Availability, TimeOffRequest, ShiftSwap, Message, KnowledgeEntry, CommTemplate, Profile, StaffingRatio, PayStub, Organization, Client, Pet } from '../types';
 import { SupabaseService } from './db';
 import { AuthService } from './supabase';
+import { DEFAULT_KNOWLEDGE_ENTRIES, filterKnowledgeEntries, mergeKnowledgeEntries } from './knowledge';
 
 // ==================== CONTEXT TYPE ====================
 interface OpsCenterContextType {
@@ -210,7 +211,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     const [requests, setRequests] = useState<TimeOffRequest[]>([]);
     const [swaps, setSwaps] = useState<ShiftSwap[]>([]);
     const [messages, setMessages] = useState<Message[]>([]);
-    const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntry[]>([]);
+    const [knowledgeBase, setKnowledgeBase] = useState<KnowledgeEntry[]>(DEFAULT_KNOWLEDGE_ENTRIES);
     const [templates, setTemplates] = useState<CommTemplate[]>([]);
     const [currentUser, setCurrentUser] = useState<Profile | null>(null);
     const [pendingInvites, setPendingInvites] = useState<Profile[]>([]);
@@ -238,14 +239,15 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         try {
-            const [fetchedStaff, fetchedShifts, fetchedRatios, fetchedTimeEntries, fetchedOrg, fetchedMessages, fetchedClients] = await Promise.all([
+            const [fetchedStaff, fetchedShifts, fetchedRatios, fetchedTimeEntries, fetchedOrg, fetchedMessages, fetchedClients, fetchedKnowledge] = await Promise.all([
                 SupabaseService.getProfiles(),
                 SupabaseService.getShifts(),
                 SupabaseService.getRatios(),
                 SupabaseService.getTimeEntries(),
                 SupabaseService.getOrganization(),
                 SupabaseService.getMessages(),
-                SupabaseService.getClients()
+                SupabaseService.getClients(),
+                SupabaseService.getKnowledgeEntries()
             ]);
 
             setStaff(fetchedStaff);
@@ -255,6 +257,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             setOrganization(fetchedOrg);
             setMessages(fetchedMessages);
             setClients(fetchedClients.length > 0 ? fetchedClients : MOCK_CLIENTS);
+            setKnowledgeBase(mergeKnowledgeEntries(fetchedKnowledge));
 
             // fetch assignments
             const fetchedAssignments = await SupabaseService.getPetAssignments();
@@ -271,14 +274,11 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         let isMounted = true;
 
         // Helper function to load the user profile with retries
-        const loadUserProfile = async (userId: string, email: string, retries = 3, silent = false) => {
+        const loadUserProfile = async (userId: string, email: string, retries = 2, silent = false) => {
             try {
                 if (!silent) {
-                    console.log(`[Auth] Fetching user profile (attempt ${4 - retries}/3)...`);
+                    console.log(`[Auth] Fetching user profile (attempt ${3 - retries}/2)...`);
                 }
-
-                // Add a tiny initial delay to allow DB propagation
-                if (retries === 3 && !silent) await new Promise(resolve => setTimeout(resolve, 500));
 
                 const userProfile = await SupabaseService.getProfileById(userId);
 
@@ -289,13 +289,14 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                         setIsAuthenticated(true);
                         isAuthenticatedRef.current = true;
                         setHasMissingProfile(false);
-                        refreshData(silent);
+                        // Show the dashboard IMMEDIATELY, load data in background
                         setAuthLoading(false);
+                        refreshData(silent);
                         return true;
                     } else if (retries > 0) {
-                        console.warn(`[Auth] Profile not found for ${email}, retrying in 1s...`);
-                        setTimeout(() => loadUserProfile(userId, email, retries - 1, silent), 1000);
-                        return false;
+                        console.warn(`[Auth] Profile not found for ${email}, retrying...`);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return loadUserProfile(userId, email, retries - 1, silent);
                     } else {
                         console.error('[Auth] No profile found after retries for user:', email);
                         setHasMissingProfile(true);
@@ -309,7 +310,8 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 console.error('[Auth] Error fetching profile:', error);
                 if (isMounted) {
                     if (retries > 0) {
-                        setTimeout(() => loadUserProfile(userId, email, retries - 1, silent), 1000);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return loadUserProfile(userId, email, retries - 1, silent);
                     } else {
                         setHasMissingProfile(true);
                         setIsAuthenticated(false);
@@ -321,23 +323,39 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         };
 
         // Step 1: Check for existing session IMMEDIATELY on mount
-        // This is more reliable than waiting for onAuthStateChange
         const initializeAuth = async () => {
-            console.log('[Auth] Checking for existing session...');
-            const session = await AuthService.getSession();
+            try {
+                console.log('[Auth] Checking for existing session...');
+                const session = await AuthService.getSession();
 
-            if (session?.user) {
-                console.log('[Auth] Found existing session for:', session.user.email);
-                await loadUserProfile(session.user.id, session.user.email || '');
-            } else {
-                console.log('[Auth] No existing session, showing login');
+                if (session?.user) {
+                    console.log('[Auth] Found existing session for:', session.user.email);
+                    await loadUserProfile(session.user.id, session.user.email || '');
+                } else {
+                    console.log('[Auth] No existing session, showing login');
+                    if (isMounted) {
+                        setAuthLoading(false);
+                    }
+                }
+            } catch (error) {
+                console.error('[Auth] Failed to initialize auth:', error);
                 if (isMounted) {
                     setAuthLoading(false);
                 }
             }
         };
 
-        initializeAuth();
+        // Safety timeout: if auth takes longer than 5s, force loading to end
+        const safetyTimeout = setTimeout(() => {
+            if (isMounted) {
+                console.warn('[Auth] Safety timeout reached — forcing authLoading to false');
+                setAuthLoading(false);
+            }
+        }, 5000);
+
+        initializeAuth().finally(() => {
+            clearTimeout(safetyTimeout);
+        });
 
         // Step 2: Subscribe to FUTURE auth changes (sign in, sign out, token refresh)
         const { data: { subscription } } = AuthService.onAuthStateChange(async (event, session) => {
@@ -922,8 +940,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
     };
 
     const searchKnowledge = (query: string) => {
-        if (!query) return knowledgeBase;
-        return knowledgeBase.filter(k => k.title.toLowerCase().includes(query.toLowerCase()));
+        return filterKnowledgeEntries(knowledgeBase, query);
     };
 
     // ==================== PAYROLL ACTIONS ====================

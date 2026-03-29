@@ -1,25 +1,43 @@
 -- =====================================================
--- OPSCENTER - SEED DATA (Optional)
+-- OPSCENTER - MOD SOP KNOWLEDGE ENTRY
 -- =====================================================
--- Run this AFTER 01_schema.sql to populate optional demo data.
--- This only creates the organization and staffing ratios.
--- Staff profiles are created through the app when users sign up.
+-- Apply this to existing environments to enable knowledge entry reads
+-- and seed the Manager On Duty SOP used by OpsPilot.
 -- =====================================================
 
--- Organization (with fixed invite codes for demo)
-INSERT INTO organizations (id, name, slug, industry, invite_code, client_invite_code, settings)
-VALUES ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'A Dog''s World', 'adogs-world', 'pet_care', 'DOGS24', 'PET24', '{"timezone": "America/Chicago"}')
-ON CONFLICT (id) DO UPDATE SET invite_code = 'DOGS24', client_invite_code = 'PET24';
+-- Knowledge Base policies
+DROP POLICY IF EXISTS "Staff can view knowledge entries" ON knowledge_entries;
+DROP POLICY IF EXISTS "Managers can manage knowledge entries" ON knowledge_entries;
 
--- Staffing Ratios
-INSERT INTO staffing_ratios (organization_id, zone_name, staff_count, dog_count)
-VALUES
-  ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Daycare', 1, 15),
-  ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Boarding', 1, 25),
-  ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'Suites', 1, 10)
-ON CONFLICT DO NOTHING;
+CREATE POLICY "Staff can view knowledge entries" ON knowledge_entries
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND organization_id = knowledge_entries.organization_id
+      AND role IN ('owner', 'manager', 'staff')
+    )
+  );
 
--- Knowledge Base
+CREATE POLICY "Managers can manage knowledge entries" ON knowledge_entries
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND organization_id = knowledge_entries.organization_id
+      AND role IN ('owner', 'manager')
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid()
+      AND organization_id = knowledge_entries.organization_id
+      AND role IN ('owner', 'manager')
+    )
+  );
+
+-- Manager On Duty SOP
 INSERT INTO knowledge_entries (id, organization_id, category, title, content_raw, tags)
 VALUES (
   '0a2d62c7-1b90-4d15-8e11-745ef5280056',
@@ -50,8 +68,5 @@ ON CONFLICT (id) DO UPDATE SET
   category = EXCLUDED.category,
   title = EXCLUDED.title,
   content_raw = EXCLUDED.content_raw,
-  tags = EXCLUDED.tags;
-
--- =====================================================
--- DONE! Base data loaded. (No mock staff profiles)
--- =====================================================
+  tags = EXCLUDED.tags,
+  updated_at = timezone('utc'::text, now());

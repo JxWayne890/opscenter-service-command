@@ -1,48 +1,14 @@
 import React from 'react';
 import { X, Send, Sparkles } from 'lucide-react';
+import { useOpsCenter } from '../services/store';
+import { buildOpsPilotReply, OPS_PILOT_SUGGESTIONS } from '../services/opsPilot';
 
 interface OpsPilotModalProps {
     isOpen: boolean;
     onClose: () => void;
+    pendingPrompt?: string | null;
+    onPromptHandled?: () => void;
 }
-
-const MOCK_RESPONSES: Record<string, string> = {
-    'summary of knowledge base updates': `I've analyzed the Knowledge Base changes from the last 24 hours.
-
-**Recent Updates:**
-• **Opening Procedures (SOP-101):** Updated by *Mike Chen* to include new alarm codes.
-• **Uniform Policy:** Revised to allow seasonal summer wear.
-• **Emergency Contacts:** Added local fire department direct line.
-
-Would you like me to flag any of these for team review?`,
-
-    'who is late for shift?': `Scanning timeclock data...
-
-⚠️ **Attendance Alert**
-**Sarah Jenkins** is currently **15 minutes late** for her 08:00 AM shift.
-
-*History:* This is her second occurrence this month.
-*Contact:* I can draft a text message to her checking on her status.`,
-
-    'check opening sops': `Retrieving **Standard Operating Procedures**...
-
-**Opening Checklist Status (Today):**
-✅ Alarm Deactivated (07:45 AM)
-✅ Lights & HVAC On (07:50 AM)
-✅ Cash Drawers Counted (08:00 AM)
-❌ **Perishables Inventory** - *Pending*
-
-*Action:* The inventory check is 5 minutes overdue. I've sent a reminder to the Supervisor on duty.`,
-
-    'default': `I'm processing that request using the Service Command neural engine...
-
-I can help you with:
-• **Real-time Roster Status**
-• **Compliance & SOP Verification**
-• **Instant Team Communication**
-
-Try asking "Who is on site?" or "Draft a shift summary."`
-};
 
 interface Message {
     id: string;
@@ -51,7 +17,8 @@ interface Message {
     timestamp: Date;
 }
 
-const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
+const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose, pendingPrompt, onPromptHandled }) => {
+    const { knowledgeBase, shifts, staff, timeEntries } = useOpsCenter();
     const [viewportHeight, setViewportHeight] = React.useState(window.visualViewport?.height || window.innerHeight);
     const [keyboardOffset, setKeyboardOffset] = React.useState(0);
 
@@ -84,13 +51,13 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
         handleResize();
 
         // Initial Greeting
-        if (messages.length === 0) {
+        if (messages.length === 0 && !pendingPrompt) {
             setIsTyping(true);
             setTimeout(() => {
                 setMessages([{
                     id: 'init',
                     role: 'assistant',
-                    content: "Hello! I'm OpsPilot. I'm connected to your location's real-time data feeds. How can I assist you today?",
+                    content: "Hello! I'm OpsPilot. I can answer from the Knowledge Hub, including the Manager On Duty SOP, plus live roster and attendance data.",
                     timestamp: new Date()
                 }]);
                 setIsTyping(false);
@@ -101,14 +68,14 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
             window.visualViewport?.removeEventListener('resize', handleResize);
             window.visualViewport?.removeEventListener('scroll', handleResize);
         };
-    }, [isOpen]);
+    }, [isOpen, pendingPrompt]);
 
     // Auto-scroll to bottom
     React.useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, isTyping]);
 
-    const handleSend = async (text: string) => {
+    const handleSend = (text: string) => {
         if (!text.trim()) return;
 
         const userMsg: Message = {
@@ -124,9 +91,12 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
 
         // Simulate AI Latency
         setTimeout(() => {
-            const lowerText = text.toLowerCase();
-            const responseKey = Object.keys(MOCK_RESPONSES).find(k => lowerText.includes(k)) || 'default';
-            const responseContent = MOCK_RESPONSES[responseKey];
+            const responseContent = buildOpsPilotReply(text, {
+                knowledgeBase,
+                shifts,
+                staff,
+                timeEntries
+            });
 
             const aiMsg: Message = {
                 id: (Date.now() + 1).toString(),
@@ -137,8 +107,15 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
 
             setMessages(prev => [...prev, aiMsg]);
             setIsTyping(false);
-        }, 1500);
+        }, 900);
     };
+
+    React.useEffect(() => {
+        if (!isOpen || !pendingPrompt || isTyping) return;
+
+        handleSend(pendingPrompt);
+        onPromptHandled?.();
+    }, [isOpen, pendingPrompt, isTyping, knowledgeBase, shifts, staff, timeEntries, onPromptHandled]);
 
     if (!isOpen) return null;
 
@@ -190,7 +167,7 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose }) => {
                         <div className="mb-6 mt-4">
                             <p className="text-xs text-white/40 font-bold uppercase tracking-widest text-center mb-4">Suggested Queries</p>
                             <div className="grid grid-cols-1 gap-2">
-                                {['Summary of Knowledge Base updates', 'Who is late for shift?', 'Check Opening SOPs'].map(q => (
+                                {OPS_PILOT_SUGGESTIONS.map(q => (
                                     <button
                                         key={q}
                                         onClick={() => handleSend(q)}
