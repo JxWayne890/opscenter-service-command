@@ -2,7 +2,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { ErrorTracking } from './services/errorTracking';
 import './index.css';
+
+// Initialize error tracking before anything else
+ErrorTracking.init();
 
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean; error: any }> {
   constructor(props: { children: React.ReactNode }) {
@@ -15,7 +19,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 
   componentDidCatch(error: any, errorInfo: any) {
-    console.error("Uncaught error:", error, errorInfo);
+    ErrorTracking.captureException(error, { componentStack: errorInfo?.componentStack });
   }
 
   render() {

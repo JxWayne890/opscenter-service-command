@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { ErrorTracking } from '../services/errorTracking';
 
 interface Props {
   children: React.ReactNode;
@@ -22,7 +23,10 @@ class ViewErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error(`[${this.props.viewName || 'View'}] Uncaught error:`, error, errorInfo);
+    ErrorTracking.captureException(error, {
+      view: this.props.viewName,
+      componentStack: errorInfo?.componentStack,
+    });
   }
 
   handleRetry = () => {

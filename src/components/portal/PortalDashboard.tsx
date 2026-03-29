@@ -194,8 +194,28 @@ const PortalDashboard = () => {
                         </div>
                     )}
 
+                    {/* Account Stats - always show */}
+                    {(!client.current_balance || Number(client.current_balance) <= 0) && (
+                        <div className="mb-8 bg-white rounded-xl border border-gray-200 p-6 flex items-center justify-between shadow-sm">
+                            <div>
+                                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Account Balance</h3>
+                                <p className="text-3xl font-bold text-emerald-600 mt-1">$0.00</p>
+                            </div>
+                            <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100">All Paid</span>
+                        </div>
+                    )}
+
                     {/* Pets Grid */}
                     <h2 className="text-lg font-bold text-gray-900 mb-4">My Pets</h2>
+                    {pets.length === 0 ? (
+                        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
+                            <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                <User size={32} className="text-gray-300" />
+                            </div>
+                            <p className="text-gray-500 font-medium">No pets on file yet.</p>
+                            <p className="text-sm text-gray-400 mt-1">Contact the facility to add your pets.</p>
+                        </div>
+                    ) : (
                     <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {pets.map(pet => (
                             <div key={pet.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -236,6 +256,7 @@ const PortalDashboard = () => {
                             </div>
                         ))}
                     </div>
+                    )}
 
                     {/* Quick Contacts (Mobile Footer equivalent) */}
                     <div className="mt-12 p-6 bg-indigo-50 border border-indigo-100 rounded-xl flex flex-col md:flex-row items-center justify-between gap-4">

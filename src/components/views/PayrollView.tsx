@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
-import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, FileText, Send, Lock } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, FileText, Send, Lock, Download, Users } from 'lucide-react';
 import TimesheetDetailModal from '../timesheet/TimesheetDetailModal';
 
 const PayrollView = () => {
@@ -270,6 +270,27 @@ const PayrollView = () => {
         setIsProcessing(null);
     };
 
+    const handleExportCSV = () => {
+        const headers = ['Employee', 'Role', 'Hours', 'Rate', 'Gross Pay', 'Status'];
+        const rows = payrollData.map(({ employee, totalHours, estPay, status }) => [
+            employee.full_name,
+            employee.role,
+            totalHours.toFixed(2),
+            (employee.hourly_rate || 0).toFixed(2),
+            estPay.toFixed(2),
+            status,
+        ]);
+        const totals = ['TOTAL', '', payrollData.reduce((s, d) => s + d.totalHours, 0).toFixed(2), '', payrollData.reduce((s, d) => s + d.estPay, 0).toFixed(2), ''];
+        const csv = [headers, ...rows, totals].map(row => row.join(',')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `payroll_${periodStartString}_to_${periodEndString}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="p-6 h-full flex flex-col bg-slate-50 overflow-y-auto lg:overflow-hidden pb-32 lg:pb-6">
             {/* Header */}
@@ -278,6 +299,15 @@ const PayrollView = () => {
                     <h1 className="text-2xl font-bold text-slate-900">Payroll Manager</h1>
                     <p className="text-slate-500">Review and release pay stubs for staff.</p>
                 </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleExportCSV}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 font-bold text-xs rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                        title="Export payroll to CSV"
+                    >
+                        <Download size={16} />
+                        <span className="hidden sm:inline">Export CSV</span>
+                    </button>
                 <div className="flex items-center gap-4 bg-white p-2 rounded-xl border border-slate-200 shadow-sm w-full md:w-auto justify-between md:justify-start">
                     <button
                         onClick={() => changePeriod(-1)}
@@ -297,6 +327,7 @@ const PayrollView = () => {
                     >
                         <ChevronRight size={20} />
                     </button>
+                </div>
                 </div>
             </div>
 
@@ -363,6 +394,15 @@ const PayrollView = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
+                            {payrollData.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="p-16 text-center">
+                                        <Users size={40} className="mx-auto text-slate-200 mb-4" />
+                                        <p className="text-sm font-bold text-slate-400">No staff members found</p>
+                                        <p className="text-xs text-slate-400 mt-1">Add staff in the Roster view to see payroll data here.</p>
+                                    </td>
+                                </tr>
+                            )}
                             {payrollData.map(({ employee, totalHours, estPay, status }) => (
                                 <tr key={employee.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.has(employee.id) ? 'bg-indigo-50/50' : ''}`}>
                                     <td className="p-4 pl-6 text-center">
