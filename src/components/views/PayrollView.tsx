@@ -3,6 +3,7 @@ import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
 import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, FileText, Send, Lock, Download, Users } from 'lucide-react';
 import TimesheetDetailModal from '../timesheet/TimesheetDetailModal';
+import { AuditLog } from '../../services/auditLog';
 
 const PayrollView = () => {
     const { staff, timeEntries, payStubs, fetchPayStubs, createPayStub, updatePayStubStatus, currentUser, organization } = useOpsCenter();
@@ -206,6 +207,16 @@ const PayrollView = () => {
                 const msg = `Approval failed for ${userId}.\n\nDatabase Error: ${result.error || 'Unknown rejection'}`;
                 console.error('[PayrollView]', msg);
                 alert(msg);
+            } else {
+                const employee = staff.find(s => s.id === userId);
+                AuditLog.log({
+                    action: 'payroll.approved',
+                    actorId: currentUser.id,
+                    actorName: currentUser.full_name,
+                    targetId: userId,
+                    targetName: employee?.full_name,
+                    details: { hours, pay, period: `${periodStartString} to ${periodEndString}` },
+                });
             }
         } catch (error) {
             console.error('Error in handleApprove:', error);
@@ -224,6 +235,16 @@ const PayrollView = () => {
                 const { success, error } = await updatePayStubStatus(stub.id, 'released');
                 if (!success) {
                     alert(`Release failed.\n\nDatabase Error: ${error || 'Unknown rejection'}`);
+                } else {
+                    const employee = staff.find(s => s.id === userId);
+                    AuditLog.log({
+                        action: 'payroll.released',
+                        actorId: currentUser.id,
+                        actorName: currentUser.full_name,
+                        targetId: userId,
+                        targetName: employee?.full_name,
+                        details: { period: `${periodStartString} to ${periodEndString}` },
+                    });
                 }
             }
         } catch (error) {
@@ -289,6 +310,12 @@ const PayrollView = () => {
         a.download = `payroll_${periodStartString}_to_${periodEndString}.csv`;
         a.click();
         URL.revokeObjectURL(url);
+        AuditLog.log({
+            action: 'payroll.exported',
+            actorId: currentUser.id,
+            actorName: currentUser.full_name,
+            details: { period: `${periodStartString} to ${periodEndString}`, employees: payrollData.length },
+        });
     };
 
     return (

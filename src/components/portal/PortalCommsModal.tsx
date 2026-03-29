@@ -46,7 +46,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const IMGBB_API_KEY = '21c70359a24d1d10335f4f41a8867b08';
+    const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY || '';
 
     // Auto-Scroll Ref
     const messagesEndRef = useRef<HTMLDivElement>(null);

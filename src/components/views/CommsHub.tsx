@@ -29,7 +29,7 @@ const CommsHub = () => {
     const [pendingFiles, setPendingFiles] = useState<File[]>([]); // New: Queue System
     const [lightboxImage, setLightboxImage] = useState<string | null>(null); // New: Lightbox
     const fileInputRef = React.useRef<HTMLInputElement>(null);
-    const IMGBB_API_KEY = '21c70359a24d1d10335f4f41a8867b08';
+    const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY || '';
 
     const toggleSelection = (id: string) => {
         const newSet = new Set(selectedConversations);

@@ -28,7 +28,7 @@ export const SupabaseService = {
     const supabaseUrl = (supabase as any).supabaseUrl;
     const supabaseKey = (supabase as any).supabaseKey;
 
-    const url = `${supabaseUrl}/rest/v1/profiles?id=eq.${userId}&select=*`;
+    const url = `${supabaseUrl}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=*`;
 
     try {
       const controller = new AbortController();

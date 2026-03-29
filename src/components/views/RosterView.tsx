@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
@@ -144,12 +144,13 @@ const RosterView = () => {
     const sortedShifts = [...shifts].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime());
 
     // Filter staff for mobile list - Staff only see themselves
-    const filteredStaff = canManageStaff
+    const filteredStaff = useMemo(() => canManageStaff
         ? staff.filter(user =>
             user.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             user.role.toLowerCase().includes(searchTerm.toLowerCase())
         )
-        : staff.filter(user => user.id === currentUser.id);
+        : staff.filter(user => user.id === currentUser.id),
+    [staff, searchTerm, canManageStaff, currentUser.id]);
 
     // Filter shifts by selected staff
     // If NOT manager, force filter to current user regardless of state (safety)
