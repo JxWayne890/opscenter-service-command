@@ -239,6 +239,18 @@ export interface Client {
   current_balance?: number; // Added for Portal View
 }
 
+// --- Notifications ---
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  title: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  category: 'shift' | 'payroll' | 'timeoff' | 'system';
+  read: boolean;
+  created_at: string;
+}
+
 // --- View Types ---
 export type ViewType = 'pulse' | 'roster' | 'clients' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock' | 'financial';
 

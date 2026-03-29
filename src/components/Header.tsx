@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Bell, MapPin, ChevronDown } from 'lucide-react';
 import { Organization, Profile } from '../types';
 import { useOpsCenter } from '../services/store';
+import { NotificationService } from '../services/notifications';
+import NotificationPanel from './NotificationPanel';
 
 interface HeaderProps {
     user: Profile | null;
@@ -12,6 +14,15 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ user, org, onProfileClick }) => {
     const { setInviteModalOpen, currentUser } = useOpsCenter();
     const isManager = currentUser?.role === 'owner' || currentUser?.role === 'manager';
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [unreadCount, setUnreadCount] = useState(0);
+
+    useEffect(() => {
+        setUnreadCount(NotificationService.getUnreadCount());
+        return NotificationService.subscribe((notifs) => {
+            setUnreadCount(notifs.filter(n => !n.read).length);
+        });
+    }, []);
 
     if (!user) return null;
 
@@ -42,10 +53,23 @@ const Header: React.FC<HeaderProps> = ({ user, org, onProfileClick }) => {
 
                 <div className="h-8 w-px bg-slate-200/50 hidden md:block" />
 
-                <button className="relative p-2.5 text-slate-400 hover:text-brand-blue hover:bg-white/60 rounded-xl transition-all group">
-                    <Bell size={20} />
-                    <span className="absolute top-2.5 right-3 w-2 h-2 bg-rose-500 rounded-full border-2 border-white/0 group-hover:border-white transition-all shadow-sm"></span>
-                </button>
+                <div className="relative">
+                    <button
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        className="relative p-2.5 text-slate-400 hover:text-brand-blue hover:bg-white/60 rounded-xl transition-all group"
+                    >
+                        <Bell size={20} />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 bg-rose-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                                {unreadCount > 9 ? '9+' : unreadCount}
+                            </span>
+                        )}
+                    </button>
+                    <NotificationPanel
+                        isOpen={showNotifications}
+                        onClose={() => setShowNotifications(false)}
+                    />
+                </div>
 
                 {/* User Pill (Glass) */}
                 <div

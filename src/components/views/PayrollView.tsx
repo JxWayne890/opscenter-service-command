@@ -4,6 +4,7 @@ import { TimeMath } from '../../utils/timeMath';
 import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, FileText, Send, Lock, Download, Users } from 'lucide-react';
 import TimesheetDetailModal from '../timesheet/TimesheetDetailModal';
 import { AuditLog } from '../../services/auditLog';
+import { getOvertimeStatus } from '../../utils/overtime';
 
 const PayrollView = () => {
     const { staff, timeEntries, payStubs, fetchPayStubs, createPayStub, updatePayStubStatus, currentUser, organization } = useOpsCenter();
@@ -430,7 +431,9 @@ const PayrollView = () => {
                                     </td>
                                 </tr>
                             )}
-                            {payrollData.map(({ employee, totalHours, estPay, status }) => (
+                            {payrollData.map(({ employee, totalHours, estPay, status }) => {
+                                const ot = getOvertimeStatus(employee.id, timeEntries);
+                                return (
                                 <tr key={employee.id} className={`hover:bg-slate-50 transition-colors ${selectedIds.has(employee.id) ? 'bg-indigo-50/50' : ''}`}>
                                     <td className="p-4 pl-6 text-center">
                                         <input
@@ -453,7 +456,13 @@ const PayrollView = () => {
                                         </div>
                                     </td>
                                     <td className="p-4 text-slate-500 uppercase text-[10px] font-bold">{employee.role}</td>
-                                    <td className="p-4 text-right font-medium">{TimeMath.formatDecimalHours(totalHours)}</td>
+                                    <td className="p-4 text-right font-medium">
+                                        <span className="inline-flex items-center gap-1.5">
+                                            {TimeMath.formatDecimalHours(totalHours)}
+                                            {ot.isOvertime && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-bold rounded-full" title={`${ot.overtimeHours.toFixed(1)}h overtime`}>OT</span>}
+                                            {ot.isApproaching && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full" title="Approaching 40h">!</span>}
+                                        </span>
+                                    </td>
                                     <td className="p-4 text-right font-bold text-slate-900">{TimeMath.formatCurrency(estPay)}</td>
                                     <td className="p-4">
                                         {status === 'released' && <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><CheckCircle2 size={12} /> Released</span>}
@@ -493,7 +502,8 @@ const PayrollView = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
