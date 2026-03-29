@@ -1,5 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import { X, Printer, CheckCircle2, AlertTriangle, Clock, Calendar, DollarSign, ArrowRight, Lock, Coffee, Play, StopCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Printer, Download, CheckCircle2, AlertTriangle, Clock, Calendar, DollarSign, ArrowRight, Lock, Coffee, Play, StopCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Shift, TimeEntry, Profile } from '../../types';
 import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
@@ -362,6 +362,71 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
         printWindow.document.close();
     };
 
+    const handleDownloadPDF = () => {
+        // Generate a self-contained HTML blob that triggers print-to-PDF
+        const html = `<!DOCTYPE html><html><head>
+            <title>PayStub_${staffMember.full_name.replace(/\s+/g, '_')}_${dateRange.start.toLocaleDateString().replace(/\//g, '-')}</title>
+            <style>
+                body { font-family: 'Inter', -apple-system, sans-serif; padding: 40px; color: #111827; max-width: 900px; margin: 0 auto; }
+                .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 10px; }
+                .brand { font-size: 24px; font-weight: 800; }
+                .doc-title { font-size: 16px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: 1px; }
+                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; border-top: 2px solid #111827; padding-top: 20px; }
+                .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding: 4px 0; }
+                .label { font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; }
+                .value { font-size: 13px; font-weight: 500; }
+                table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+                .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; color: #374151; }
+                thead { background: #f9fafb; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+                th { text-align: left; padding: 10px 8px; font-size: 11px; text-transform: uppercase; color: #4b5563; font-weight: 600; }
+                td { padding: 10px 8px; border-bottom: 1px solid #f3f4f6; }
+                .text-right { text-align: right; }
+                .font-bold { font-weight: 700; }
+                .summary { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; display: flex; justify-content: flex-end; gap: 40px; }
+                .total-label { font-size: 11px; text-transform: uppercase; color: #6b7280; margin-bottom: 4px; }
+                .total-value { font-size: 20px; font-weight: 800; }
+                .footer { margin-top: 48px; border-top: 1px dashed #e5e7eb; padding-top: 16px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
+            </style></head><body>
+            <div class="header"><div class="brand">OpsCenter</div><div class="doc-title">Earnings Statement</div></div>
+            <div class="info-grid">
+                <div>
+                    <div class="info-row"><span class="label">Employee</span><span class="value font-bold">${staffMember.full_name}</span></div>
+                    <div class="info-row"><span class="label">Role</span><span class="value">${staffMember.role.toUpperCase()}</span></div>
+                    <div class="info-row"><span class="label">Email</span><span class="value">${staffMember.email || '—'}</span></div>
+                </div>
+                <div>
+                    <div class="info-row"><span class="label">Period Start</span><span class="value">${dateRange.start.toLocaleDateString()}</span></div>
+                    <div class="info-row"><span class="label">Period End</span><span class="value">${dateRange.end.toLocaleDateString()}</span></div>
+                    <div class="info-row"><span class="label">Pay Date</span><span class="value">${new Date().toLocaleDateString()}</span></div>
+                </div>
+            </div>
+            <div class="section-title">Earnings</div>
+            <table><thead><tr><th>Description</th><th class="text-right">Rate</th><th class="text-right">Hours</th><th class="text-right">Amount</th></tr></thead>
+            <tbody><tr><td>Regular Pay</td><td class="text-right">${TimeMath.formatCurrency(stats.hourlyRate)}</td><td class="text-right">${TimeMath.formatDecimalHours(stats.approvedHours)}</td><td class="text-right font-bold">${TimeMath.formatCurrency(stats.estPay)}</td></tr></tbody></table>
+            <div class="section-title">Attendance Detail</div>
+            <table><thead><tr><th>Date</th><th>Type</th><th>Clock In / Out</th><th class="text-right">Net Hours</th></tr></thead>
+            <tbody>${periodData.filter(e => e.status === 'approved').map(entry => {
+                const s = new Date(entry.clock_in);
+                const end = entry.clock_out ? new Date(entry.clock_out) : null;
+                const netMS = TimeMath.calculateNetDurationMS(entry.clock_in, entry.clock_out || new Date(), entry.total_break_minutes);
+                return `<tr><td>${s.toLocaleDateString()}</td><td>Punch</td><td>${s.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - ${end ? end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : 'ACTIVE'}</td><td class="text-right">${TimeMath.formatDuration(netMS)}</td></tr>`;
+            }).join('')}</tbody></table>
+            <div class="summary">
+                <div style="text-align:right"><div class="total-label">Approved Hours</div><div class="total-value">${TimeMath.formatDecimalHours(stats.approvedHours)}</div></div>
+                <div style="text-align:right"><div class="total-label">Net Pay</div><div class="total-value">${TimeMath.formatCurrency(stats.estPay)}</div></div>
+            </div>
+            <div class="footer"><div>Generated by OpsCenter Payroll System</div><div>${new Date().toLocaleDateString()}</div></div>
+        </body></html>`;
+
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PayStub_${staffMember.full_name.replace(/\s+/g, '_')}_${dateRange.start.toLocaleDateString().replace(/\//g, '-')}.html`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
@@ -518,6 +583,12 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                             className="w-full border border-slate-200 text-slate-600 py-3 rounded-xl text-sm font-bold hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
                         >
                             <Printer size={16} /> Print Pay Stub
+                        </button>
+                        <button
+                            onClick={handleDownloadPDF}
+                            className="w-full border border-indigo-200 bg-indigo-50 text-indigo-700 py-3 rounded-xl text-sm font-bold hover:bg-indigo-100 transition-colors flex items-center justify-center gap-2"
+                        >
+                            <Download size={16} /> Download Pay Stub
                         </button>
                     </div>
 

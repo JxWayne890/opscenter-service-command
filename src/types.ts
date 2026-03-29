@@ -252,7 +252,7 @@ export interface AppNotification {
 }
 
 // --- View Types ---
-export type ViewType = 'pulse' | 'roster' | 'clients' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock' | 'financial';
+export type ViewType = 'pulse' | 'roster' | 'clients' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock' | 'financial' | 'analytics';
 
 // --- Financial Dashboard Types ---
 

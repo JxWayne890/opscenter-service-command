@@ -18,6 +18,7 @@ const TimeClockView = lazy(() => import('./components/views/TimeClockView'));
 const SettingsView = lazy(() => import('./components/views/SettingsView'));
 const ClientsView = lazy(() => import('./components/views/ClientsView'));
 const FinancialView = lazy(() => import('./components/views/FinancialView'));
+const AnalyticsView = lazy(() => import('./components/views/AnalyticsView'));
 const PortalLogin = lazy(() => import('./components/portal/PortalLogin'));
 const PortalDashboard = lazy(() => import('./components/portal/PortalDashboard'));
 
@@ -133,6 +134,9 @@ const DashboardContent: React.FC = () => {
               </ViewErrorBoundary>
               <ViewErrorBoundary viewName="Financial">
                 {activeView === 'financial' && <FinancialView />}
+              </ViewErrorBoundary>
+              <ViewErrorBoundary viewName="Analytics">
+                {activeView === 'analytics' && <AnalyticsView />}
               </ViewErrorBoundary>
             </Suspense>
           </div>

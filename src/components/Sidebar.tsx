@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOpsCenter } from '../services/store';
 import { isManager } from '../services/permissions';
-import { Home, Users, BookOpen, Send, Settings, LogOut, Zap, Calendar, Clock, Menu, X, Sparkles, ChevronRight, Dog, TrendingUp } from 'lucide-react';
+import { Home, Users, BookOpen, Send, Settings, LogOut, Zap, Calendar, Clock, Menu, X, Sparkles, ChevronRight, Dog, TrendingUp, BarChart3 } from 'lucide-react';
 import { ViewType } from '../types';
 import OpsPilotModal from './OpsPilotModal';
 
@@ -62,6 +62,7 @@ const Sidebar = ({ activeView, setActiveView }: { activeView: ViewType, setActiv
                     <>
                         <SidebarIcon label="Settings" icon={Settings} active={activeView === 'settings'} onClick={() => setActiveView('settings')} />
                         <SidebarIcon label="Financial" icon={TrendingUp} active={activeView === 'financial'} onClick={() => setActiveView('financial')} />
+                        <SidebarIcon label="Analytics" icon={BarChart3} active={activeView === 'analytics'} onClick={() => setActiveView('analytics')} />
                     </>
                 )}
             </div>
@@ -139,6 +140,10 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
                         <button onClick={() => { setActiveView('financial'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-emerald-300/80 hover:bg-white/10 hover:text-emerald-300 rounded-xl transition-colors">
                             <TrendingUp size={20} />
                             <span className="font-medium text-sm">Financial</span>
+                        </button>
+                        <button onClick={() => { setActiveView('analytics'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
+                            <BarChart3 size={20} />
+                            <span className="font-medium text-sm">Analytics</span>
                         </button>
                     </>
                 )}
