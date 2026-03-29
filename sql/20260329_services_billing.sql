@@ -37,11 +37,11 @@ ALTER TABLE service_records ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Service types visible to org members"
   ON service_types FOR ALL
-  USING (organization_id IN (SELECT organization_id FROM profiles WHERE user_id = auth.uid()));
+  USING (organization_id IN (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
 CREATE POLICY "Service records visible to org members"
   ON service_records FOR ALL
-  USING (organization_id IN (SELECT organization_id FROM profiles WHERE user_id = auth.uid()));
+  USING (organization_id IN (SELECT organization_id FROM profiles WHERE id = auth.uid()));
 
 -- Seed default service types for existing org
 INSERT INTO service_types (organization_id, name, category, rate, rate_unit) VALUES
