@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Plus, Dog, Phone, Mail, MapPin, MoreVertical, ChevronRight, Star, AlertCircle, Heart, Trash2, CheckSquare, Square, X, Users } from 'lucide-react';
+import { Search, Filter, Plus, Dog, Phone, Mail, MapPin, MoreVertical, ChevronRight, Star, AlertCircle, Heart, Trash2, CheckSquare, Square, X, Users, LogIn } from 'lucide-react';
 import { Client, Pet } from '../../types';
 import AddClientModal from '../clients/AddClientModal';
+import CheckInModal from '../clients/CheckInModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { useOpsCenter } from '../../services/store';
 import { formatPhoneNumber } from '../../utils/formatters';
@@ -16,6 +17,7 @@ const ClientsView: React.FC = () => {
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
     const [isAddClientOpen, setIsAddClientOpen] = useState(false);
     const [editingClient, setEditingClient] = useState<Client | null>(null);
+    const [checkInClient, setCheckInClient] = useState<Client | null>(null);
 
     // Multi-select state
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -326,12 +328,21 @@ const ClientsView: React.FC = () => {
                                     {selectedClient.status === 'active' ? 'Active Client' : 'Inactive'} • Since {new Date(selectedClient.created_at).getFullYear()}
                                 </p>
                             </div>
-                            <button
-                                onClick={() => setSelectedClient(null)}
-                                className="p-2 bg-white rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
-                            >
-                                <ChevronRight size={20} className="text-slate-400" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setCheckInClient(selectedClient)}
+                                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-sm"
+                                >
+                                    <LogIn size={14} />
+                                    Check In
+                                </button>
+                                <button
+                                    onClick={() => setSelectedClient(null)}
+                                    className="p-2 bg-white rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-colors"
+                                >
+                                    <ChevronRight size={20} className="text-slate-400" />
+                                </button>
+                            </div>
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-8">
@@ -533,6 +544,17 @@ const ClientsView: React.FC = () => {
                 confirmText={`Delete ${selectedIds.length} Clients`}
                 variant="danger"
             />
+
+            {/* Check In Modal */}
+            {checkInClient && (
+                <CheckInModal
+                    isOpen={!!checkInClient}
+                    onClose={() => setCheckInClient(null)}
+                    clientId={checkInClient.id}
+                    pets={checkInClient.pets || []}
+                    onSuccess={() => setCheckInClient(null)}
+                />
+            )}
         </div>
     );
 };

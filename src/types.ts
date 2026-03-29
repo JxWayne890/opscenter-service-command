@@ -254,6 +254,36 @@ export interface AppNotification {
 // --- View Types ---
 export type ViewType = 'pulse' | 'roster' | 'clients' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock' | 'financial' | 'analytics';
 
+// --- Services & Billing Types ---
+
+export interface ServiceType {
+  id: string;
+  organization_id: string;
+  name: string; // "Boarding", "Daycare", "Training", "Grooming"
+  category: 'boarding' | 'daycare' | 'training' | 'grooming' | 'other';
+  rate: number; // price per unit
+  rate_unit: 'per_night' | 'per_day' | 'per_session' | 'per_hour';
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface ServiceRecord {
+  id: string;
+  organization_id: string;
+  client_id: string;
+  pet_id: string;
+  service_type_id: string;
+  service_category: ServiceType['category'];
+  check_in: string; // ISO date
+  check_out?: string; // ISO date (null = still active)
+  quantity: number; // nights, days, sessions, hours
+  unit_rate: number; // rate at time of booking
+  total_amount: number; // quantity * unit_rate
+  status: 'active' | 'completed' | 'cancelled';
+  notes?: string;
+  created_at?: string;
+}
+
 // --- Financial Dashboard Types ---
 
 export interface FinancialInput {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useOpsCenter } from '../../services/store';
 import { FinancialService } from '../../services/financial';
+import { BillingService } from '../../services/billing';
 import { FinancialMonthData } from '../../types';
 import SnapshotOverview from '../financial/SnapshotOverview';
 import BoardingCalculator from '../financial/BoardingCalculator';
@@ -13,6 +14,9 @@ const FinancialView: React.FC = () => {
     const [data, setData] = useState<FinancialMonthData | null>(null);
     const [loading, setLoading] = useState(true);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [autoRevenue, setAutoRevenue] = useState<{ boarding: number; daycare: number; training: number; grooming: number; other: number; total: number; recordCount: number } | null>(null);
+    const [autoPayroll, setAutoPayroll] = useState<{ totalCost: number; totalHours: number } | null>(null);
+    const { timeEntries, staff } = useOpsCenter();
 
     // Set to first day of current month
     useEffect(() => {
@@ -25,8 +29,17 @@ const FinancialView: React.FC = () => {
 
         setLoading(true);
         try {
-            const result = await FinancialService.getMonthlyData(organization.id, currentMonth);
+            const monthStr = currentMonth.toISOString().slice(0, 7);
+            const [result, revenue] = await Promise.all([
+                FinancialService.getMonthlyData(organization.id, currentMonth),
+                BillingService.getMonthlyRevenue(monthStr),
+            ]);
             setData(result);
+            setAutoRevenue(revenue);
+
+            // Auto-calculate payroll from time entries
+            const payroll = BillingService.calculateMonthlyPayroll(timeEntries, staff, monthStr);
+            setAutoPayroll(payroll);
         } catch (err) {
             console.error("Failed to load financial data", err);
         } finally {
@@ -100,6 +113,8 @@ const FinancialView: React.FC = () => {
                         data={data}
                         month={currentMonth}
                         onUpdate={handleDataUpdate}
+                        autoRevenue={autoRevenue}
+                        autoPayroll={autoPayroll}
                     />
 
                     <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

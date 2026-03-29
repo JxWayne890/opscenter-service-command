@@ -2,9 +2,135 @@ import React, { useState, useEffect } from 'react';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
 import { SupabaseService } from '../../services/db';
-import { UserPlus, Settings, Bell, Shield, LogOut, Copy, CheckCircle, Key, Banknote, HelpCircle, Save, AlertCircle, Trash2 } from 'lucide-react';
+import { UserPlus, Settings, Bell, Shield, LogOut, Copy, CheckCircle, Key, Banknote, HelpCircle, Save, AlertCircle, Trash2, DollarSign, Plus } from 'lucide-react';
+import { BillingService } from '../../services/billing';
+import { ServiceType } from '../../types';
 import OffboardingModal from '../staff/OffboardingModal';
 import { Organization } from '../../types';
+
+// ─── Service Pricing Card ─────────────────────
+const ServicePricingCard = () => {
+    const [services, setServices] = useState<ServiceType[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editRate, setEditRate] = useState('');
+    const [newName, setNewName] = useState('');
+    const [newCategory, setNewCategory] = useState<ServiceType['category']>('other');
+    const [newRate, setNewRate] = useState('');
+    const [newUnit, setNewUnit] = useState<ServiceType['rate_unit']>('per_session');
+    const [showAdd, setShowAdd] = useState(false);
+
+    useEffect(() => {
+        BillingService.getServiceTypes().then(data => { setServices(data); setLoading(false); });
+    }, []);
+
+    const handleSaveRate = async (svc: ServiceType) => {
+        const updated = await BillingService.upsertServiceType({ ...svc, rate: parseFloat(editRate) || 0 });
+        if (updated) {
+            setServices(prev => prev.map(s => s.id === svc.id ? updated : s));
+        }
+        setEditingId(null);
+    };
+
+    const handleAdd = async () => {
+        if (!newName.trim()) return;
+        const created = await BillingService.upsertServiceType({
+            name: newName.trim(),
+            category: newCategory,
+            rate: parseFloat(newRate) || 0,
+            rate_unit: newUnit,
+            is_active: true,
+        });
+        if (created) {
+            setServices(prev => [...prev, created]);
+            setNewName(''); setNewRate(''); setShowAdd(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (await BillingService.deleteServiceType(id)) {
+            setServices(prev => prev.filter(s => s.id !== id));
+        }
+    };
+
+    const unitLabels: Record<string, string> = { per_night: '/night', per_day: '/day', per_session: '/session', per_hour: '/hour' };
+
+    return (
+        <SectionCard className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><DollarSign size={20} /></div>
+                    <div>
+                        <h3 className="font-bold text-slate-900">Services & Pricing</h3>
+                        <p className="text-xs text-slate-400">Define your service rates for billing</p>
+                    </div>
+                </div>
+                <button onClick={() => setShowAdd(!showAdd)} className="p-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-500 transition-colors">
+                    <Plus size={16} />
+                </button>
+            </div>
+
+            {showAdd && (
+                <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-2">
+                    <div className="grid grid-cols-2 gap-3">
+                        <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Service name" className="p-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+                        <select value={newCategory} onChange={e => setNewCategory(e.target.value as any)} className="p-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+                            <option value="boarding">Boarding</option>
+                            <option value="daycare">Daycare</option>
+                            <option value="training">Training</option>
+                            <option value="grooming">Grooming</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <input type="number" value={newRate} onChange={e => setNewRate(e.target.value)} placeholder="Rate ($)" className="p-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" />
+                        <select value={newUnit} onChange={e => setNewUnit(e.target.value as any)} className="p-2.5 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none">
+                            <option value="per_night">Per Night</option>
+                            <option value="per_day">Per Day</option>
+                            <option value="per_session">Per Session</option>
+                            <option value="per_hour">Per Hour</option>
+                        </select>
+                    </div>
+                    <button onClick={handleAdd} className="w-full py-2.5 bg-indigo-600 text-white font-bold text-sm rounded-xl hover:bg-indigo-700 transition-colors">Add Service</button>
+                </div>
+            )}
+
+            {loading ? (
+                <div className="p-4 text-center text-sm text-slate-400">Loading services...</div>
+            ) : services.length === 0 ? (
+                <div className="p-6 text-center text-sm text-slate-400 bg-slate-50 rounded-xl border border-slate-200">
+                    No services defined yet. Add your first service above.
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {services.map(svc => (
+                        <div key={svc.id} className="flex items-center justify-between p-3 bg-slate-50/50 rounded-xl hover:bg-slate-50 transition-colors group">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-slate-900">{svc.name}</span>
+                                    <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-100 px-1.5 py-0.5 rounded">{svc.category}</span>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                {editingId === svc.id ? (
+                                    <>
+                                        <input type="number" value={editRate} onChange={e => setEditRate(e.target.value)} className="w-20 p-1.5 border rounded-lg text-sm text-right font-bold" autoFocus />
+                                        <button onClick={() => handleSaveRate(svc)} className="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg hover:bg-emerald-200 transition-colors"><Save size={14} /></button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className="text-sm font-black text-slate-900">${svc.rate.toFixed(2)}</span>
+                                        <span className="text-[10px] text-slate-400 font-medium">{unitLabels[svc.rate_unit]}</span>
+                                        <button onClick={() => { setEditingId(svc.id); setEditRate(svc.rate.toString()); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Settings size={14} /></button>
+                                        <button onClick={() => handleDelete(svc.id)} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </SectionCard>
+    );
+};
 
 // Invite Code Card Component - Now supports editing for authorized codes
 const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoon = false, onSave }: {
@@ -256,21 +382,8 @@ const SettingsView = () => {
                     </button>
                 </SectionCard>
 
-                {/* Notifications Placeholder */}
-                <SectionCard className="space-y-4 opacity-75">
-                    <div className="flex items-center space-x-3 mb-2">
-                        <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
-                            <Bell size={20} />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-slate-900">Notifications</h3>
-                            <p className="text-xs text-slate-400">Configure alerts & preferences</p>
-                        </div>
-                    </div>
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-500 font-medium text-center">
-                        Notification settings coming soon
-                    </div>
-                </SectionCard>
+                {/* Services & Pricing */}
+                <ServicePricingCard />
 
                 {/* Security Placeholder */}
                 <SectionCard className="space-y-4 opacity-75">
