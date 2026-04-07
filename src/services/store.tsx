@@ -239,7 +239,8 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         try {
-            const [fetchedStaff, fetchedShifts, fetchedRatios, fetchedTimeEntries, fetchedOrg, fetchedMessages, fetchedClients, fetchedKnowledge, fetchedRequests, fetchedSwaps] = await Promise.all([
+            // Use Promise.allSettled so one failing query doesn't block all data
+            const results = await Promise.allSettled([
                 SupabaseService.getProfiles(),
                 SupabaseService.getShifts(),
                 SupabaseService.getRatios(),
@@ -252,22 +253,28 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 SupabaseService.getShiftSwaps()
             ]);
 
-            setStaff(fetchedStaff);
-            setShifts(fetchedShifts);
-            setRatios(fetchedRatios);
-            setTimeEntries(fetchedTimeEntries);
-            setOrganization(fetchedOrg);
-            setMessages(fetchedMessages);
-            setClients(fetchedClients.length > 0 ? fetchedClients : MOCK_CLIENTS);
-            setKnowledgeBase(mergeKnowledgeEntries(fetchedKnowledge));
-            setRequests(fetchedRequests);
-            setSwaps(fetchedSwaps);
+            const get = <T,>(r: PromiseSettledResult<T>, fallback: T): T =>
+                r.status === 'fulfilled' ? r.value : fallback;
 
-            // fetch assignments
-            const fetchedAssignments = await SupabaseService.getPetAssignments();
-            setAssignments(fetchedAssignments);
+            setStaff(get(results[0], []));
+            setShifts(get(results[1], []));
+            setRatios(get(results[2], []));
+            setTimeEntries(get(results[3], []));
+            setOrganization(get(results[4], null));
+            setMessages(get(results[5], []));
+            const fetchedClients = get(results[6], []);
+            setClients(fetchedClients.length > 0 ? fetchedClients : MOCK_CLIENTS);
+            setKnowledgeBase(mergeKnowledgeEntries(get(results[7], [])));
+            setRequests(get(results[8], []));
+            setSwaps(get(results[9], []));
+
+            // fetch assignments separately (depends on org filter)
+            try {
+                const fetchedAssignments = await SupabaseService.getPetAssignments();
+                setAssignments(fetchedAssignments);
+            } catch { /* non-critical */ }
         } catch (error) {
-            // Error loading data handled by ErrorTracking
+            console.error('Critical error loading data:', error);
         } finally {
             if (!silent) setIsLoading(false);
         }
@@ -289,9 +296,8 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                         setIsAuthenticated(true);
                         isAuthenticatedRef.current = true;
                         setHasMissingProfile(false);
-                        // Show the dashboard IMMEDIATELY, load data in background
                         setAuthLoading(false);
-                        refreshData(silent);
+                        // Data loading is handled by the useEffect that watches isAuthenticated
                         return true;
                     } else if (retries > 0) {
                         await new Promise(resolve => setTimeout(resolve, 500));
@@ -351,13 +357,14 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         // Step 2: Subscribe to FUTURE auth changes (sign in, sign out, token refresh)
         const { data: { subscription } } = AuthService.onAuthStateChange(async (event, session) => {
-            // Skip events that don't require action
+            // Only act on explicit sign-in (fresh login) and sign-out
+            // Skip INITIAL_SESSION (handled above), TOKEN_REFRESHED, and
+            // duplicate SIGNED_IN events when already authenticated
             if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
                 return;
             }
 
             if (event === 'SIGNED_IN' && session?.user) {
-                // Skip if already authenticated (prevents reload loop on token refresh)
                 if (isAuthenticatedRef.current) return;
                 setAuthLoading(true);
                 await loadUserProfile(session.user.id, session.user.email || '', 3, false);
