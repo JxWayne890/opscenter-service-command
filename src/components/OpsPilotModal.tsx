@@ -35,11 +35,31 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose, pendingP
     // Catalog state
     const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set());
 
+    // Auto-clear chat after 30 minutes of inactivity
+    const lastActivityRef = React.useRef<number>(Date.now());
+    const clearTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+    const resetInactivityTimer = React.useCallback(() => {
+        lastActivityRef.current = Date.now();
+        if (clearTimeoutRef.current) clearTimeout(clearTimeoutRef.current);
+        clearTimeoutRef.current = setTimeout(() => {
+            setMessages([]);
+        }, SESSION_TIMEOUT);
+    }, []);
+
+    // Reset timer on every new message
+    React.useEffect(() => {
+        if (messages.length > 0) resetInactivityTimer();
+        return () => { if (clearTimeoutRef.current) clearTimeout(clearTimeoutRef.current); };
+    }, [messages.length, resetInactivityTimer]);
+
     useEscapeKey(onClose, isOpen);
 
     React.useEffect(() => {
         if (!isOpen) {
-            setTimeout(() => { setMessages([]); setActiveTab('chat'); }, 300);
+            // Don't clear messages — keep session history
             return;
         }
 
