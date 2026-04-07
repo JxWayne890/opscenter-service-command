@@ -128,7 +128,7 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose, pendingP
 
     return (
         <div
-            className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4 transition-[bottom] duration-300"
+            className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-0 sm:p-4 pb-28 sm:pb-4 transition-[bottom] duration-300"
             style={{ bottom: keyboardOffset > 0 ? `${keyboardOffset}px` : '0px', height: keyboardOffset > 0 ? `${viewportHeight}px` : '100%' }}
         >
             <div className="absolute inset-x-0 top-0 bg-slate-900/60 backdrop-blur-sm" style={{ height: '200vh', top: '-100vh' }} onClick={onClose} />
