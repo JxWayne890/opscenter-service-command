@@ -5,6 +5,7 @@ import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import ShiftCompletionWidget from '../dashboard/ShiftCompletionWidget';
 import LiveRosterDetailModal from '../dashboard/LiveRosterDetailModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
@@ -18,6 +19,7 @@ interface PilotMessage {
 
 const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) => {
     const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser } = useOpsCenter();
+    usePageTitle('Dashboard');
     const [currentTime, setCurrentTime] = React.useState(new Date());
     const [rosterFilter, setRosterFilter] = React.useState<'all' | 'manager' | 'staff'>('all');
     const [selectedStaffId, setSelectedStaffId] = React.useState<string | null>(null);
@@ -211,7 +213,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                                                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
                                                     </span>
-                                                    <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wide">On Lunch</span>
+                                                    <span className="text-xs font-bold text-amber-600 uppercase tracking-wide">On Lunch</span>
                                                 </div>
                                                 <span className="text-xs text-amber-600 font-medium">Since {activeTimeEntry?.break_start && new Date(activeTimeEntry.break_start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                                             </div>
@@ -225,7 +227,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                                                         <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                                                     </span>
-                                                    <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wide">Shift Active</span>
+                                                    <span className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Shift Active</span>
                                                 </div>
                                                 <span className="text-xs text-emerald-600 font-medium">Since {activeTimeEntry && new Date(activeTimeEntry.clock_in).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
                                             </div>
@@ -245,7 +247,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                 <div className="space-y-4">
                                     {nextShift ? (
                                         <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl backdrop-blur-sm">
-                                            <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-1">Next Scheduled Shift</p>
+                                            <p className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-1">Next Scheduled Shift</p>
                                             <div className="flex items-center justify-between">
                                                 <p className="text-lg font-bold text-indigo-900">
                                                     {new Date(nextShift.start_time).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}
@@ -293,7 +295,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                             </div>
                             <div className="flex items-center space-x-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-xl border border-emerald-100">
                                 <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">{activeStaff.length} Active</span>
+                                <span className="text-xs font-bold uppercase tracking-wider">{activeStaff.length} Active</span>
                             </div>
                         </div>
 
@@ -303,7 +305,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                 <button
                                     key={filter}
                                     onClick={() => setRosterFilter(filter)}
-                                    className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all ${rosterFilter === filter
+                                    className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${rosterFilter === filter
                                         ? 'bg-white text-slate-900 shadow-sm'
                                         : 'text-slate-400 hover:text-slate-600'
                                         }`}
@@ -350,11 +352,11 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                                             </div>
                                                             <div>
                                                                 <p className="text-sm font-bold text-slate-900 group-hover:text-indigo-700 transition-colors">{s.full_name}</p>
-                                                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{s.role}</p>
+                                                                <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">{s.role}</p>
                                                             </div>
                                                         </div>
                                                         <div className="text-right">
-                                                            <div className={`px-2 py-1 rounded-lg text-[10px] font-bold ${isStaffOnBreak ? 'bg-amber-100/50 text-amber-700' : 'bg-emerald-100/50 text-emerald-700'}`}>
+                                                            <div className={`px-2 py-1 rounded-lg text-xs font-bold ${isStaffOnBreak ? 'bg-amber-100/50 text-amber-700' : 'bg-emerald-100/50 text-emerald-700'}`}>
                                                                 {isStaffOnBreak ? 'On Break' : 'Active'}
                                                             </div>
                                                         </div>
@@ -368,13 +370,13 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                                 <div className="space-y-4">
                                                     {managers.length > 0 && (
                                                         <div>
-                                                            <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2 pl-2">Managers</h4>
+                                                            <h4 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-2 pl-2">Managers</h4>
                                                             {renderList(managers)}
                                                         </div>
                                                     )}
                                                     {regular.length > 0 && (
                                                         <div>
-                                                            <h4 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-2 pl-2">Staff</h4>
+                                                            <h4 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-2 pl-2">Staff</h4>
                                                             {renderList(regular)}
                                                         </div>
                                                     )}
@@ -401,7 +403,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                 <div className="col-span-1 lg:col-span-4 flex flex-col gap-6">
 
                     {/* OpsPilot Visual */}
-                    <div className="glass-panel-dark p-6 rounded-[2rem] min-h-[420px] relative overflow-hidden flex flex-col group">
+                    <div className="glass-panel-dark p-6 rounded-[2rem] h-[420px] relative overflow-hidden flex flex-col group">
                         {/* Abstract BG */}
                         <div className="absolute -top-10 -right-10 w-40 h-40 bg-indigo-500 rounded-full blur-[60px] opacity-30 group-hover:opacity-40 transition-opacity" />
                         <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500 rounded-full blur-[60px] opacity-30 group-hover:opacity-40 transition-opacity" />
@@ -508,7 +510,7 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                         </div>
                         <div className="flex flex-wrap gap-2">
                             {knowledgeBase.slice(0, 3).map(entry => (
-                                <span key={entry.id} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold border border-slate-200 truncate max-w-[120px]">
+                                <span key={entry.id} className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold border border-slate-200 truncate max-w-[120px]">
                                     {entry.title}
                                 </span>
                             ))}
