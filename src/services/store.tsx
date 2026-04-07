@@ -38,7 +38,7 @@ interface OpsCenterContextType {
     // Actions
     publishSchedule: () => Promise<void>;
     updateShift: (shiftId: string, data: Partial<Shift>) => Promise<void>;
-    createShift: (shift: Shift) => Promise<void>;
+    createShift: (shift: Shift) => Promise<boolean>;
     deleteShift: (shiftId: string) => Promise<void>;
     deleteShifts: (shiftIds: string[]) => Promise<void>;
     deleteTimeEntries: (ids: string[]) => Promise<void>;
@@ -50,7 +50,9 @@ interface OpsCenterContextType {
     clockOut: () => Promise<void>;
     updateTimeEntry: (id: string, data: Partial<TimeEntry>) => Promise<void>;
     submitTimeOff: (req: TimeOffRequest) => Promise<void>;
+    updateRequestStatus: (requestId: string, status: 'approved' | 'rejected', managerNotes?: string) => Promise<void>;
     offerShift: (swap: ShiftSwap) => Promise<void>;
+    updateSwapStatus: (swapId: string, status: 'approved' | 'rejected' | 'claimed') => Promise<void>;
     sendMessage: (msg: Message) => Promise<void>;
     deleteMessage: (id: string) => Promise<void>;
     deleteConversation: (groupId: string) => Promise<void>;
@@ -237,7 +239,7 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         }
 
         try {
-            const [fetchedStaff, fetchedShifts, fetchedRatios, fetchedTimeEntries, fetchedOrg, fetchedMessages, fetchedClients, fetchedKnowledge] = await Promise.all([
+            const [fetchedStaff, fetchedShifts, fetchedRatios, fetchedTimeEntries, fetchedOrg, fetchedMessages, fetchedClients, fetchedKnowledge, fetchedRequests, fetchedSwaps] = await Promise.all([
                 SupabaseService.getProfiles(),
                 SupabaseService.getShifts(),
                 SupabaseService.getRatios(),
@@ -245,7 +247,9 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
                 SupabaseService.getOrganization(),
                 SupabaseService.getMessages(),
                 SupabaseService.getClients(),
-                SupabaseService.getKnowledgeEntries()
+                SupabaseService.getKnowledgeEntries(),
+                SupabaseService.getTimeOffRequests(),
+                SupabaseService.getShiftSwaps()
             ]);
 
             setStaff(fetchedStaff);
@@ -256,6 +260,8 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             setMessages(fetchedMessages);
             setClients(fetchedClients.length > 0 ? fetchedClients : MOCK_CLIENTS);
             setKnowledgeBase(mergeKnowledgeEntries(fetchedKnowledge));
+            setRequests(fetchedRequests);
+            setSwaps(fetchedSwaps);
 
             // fetch assignments
             const fetchedAssignments = await SupabaseService.getPetAssignments();
@@ -345,18 +351,16 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
 
         // Step 2: Subscribe to FUTURE auth changes (sign in, sign out, token refresh)
         const { data: { subscription } } = AuthService.onAuthStateChange(async (event, session) => {
-            // Skip INITIAL_SESSION since we already handled it above
-            if (event === 'INITIAL_SESSION') {
+            // Skip events that don't require action
+            if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
                 return;
             }
 
             if (event === 'SIGNED_IN' && session?.user) {
-                // Use ref to check if already authenticated (avoids stale closure)
-                const isSilent = isAuthenticatedRef.current;
-                if (!isSilent) {
-                    setAuthLoading(true);
-                }
-                await loadUserProfile(session.user.id, session.user.email || '', 3, isSilent);
+                // Skip if already authenticated (prevents reload loop on token refresh)
+                if (isAuthenticatedRef.current) return;
+                setAuthLoading(true);
+                await loadUserProfile(session.user.id, session.user.email || '', 3, false);
             } else if (event === 'SIGNED_OUT') {
                 if (isMounted) {
                     setCurrentUser(null);
@@ -376,14 +380,17 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         };
     }, []);
 
-    // Load remaining data when authenticated
+    // Load remaining data when first authenticated (one-time)
+    const hasLoadedRef = useRef(false);
     useEffect(() => {
-        // Only refresh if authenticated AND we don't have staff data yet
-        // This prevents double-calling refreshData when loadUserProfile just did it
-        if (isAuthenticated && staff.length === 0) {
+        if (isAuthenticated && !hasLoadedRef.current) {
+            hasLoadedRef.current = true;
             refreshData();
         }
-    }, [isAuthenticated, staff.length]);
+        if (!isAuthenticated) {
+            hasLoadedRef.current = false;
+        }
+    }, [isAuthenticated]);
 
     // ==================== AUTH ====================
     const signIn = async (email: string, password: string): Promise<{ success: boolean; error: string | null }> => {
@@ -880,13 +887,39 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
         await SupabaseService.bulkAssignPets(petIds, staffId, currentUser?.id);
     };
 
-    // ==================== OTHER ACTIONS (Local) ====================
+    // ==================== TIME OFF & SHIFT SWAPS ====================
     const submitTimeOff = async (req: TimeOffRequest) => {
         setRequests(prev => [req, ...prev]);
+        const success = await SupabaseService.createTimeOffRequest(req);
+        if (!success) {
+            setRequests(prev => prev.filter(r => r.id !== req.id));
+        }
+    };
+
+    const updateRequestStatus = async (requestId: string, status: 'approved' | 'rejected', managerNotes?: string) => {
+        const original = requests.find(r => r.id === requestId);
+        setRequests(prev => prev.map(r => r.id === requestId ? { ...r, status, manager_notes: managerNotes } : r));
+        const success = await SupabaseService.updateTimeOffRequestStatus(requestId, status, managerNotes);
+        if (!success && original) {
+            setRequests(prev => prev.map(r => r.id === requestId ? original : r));
+        }
     };
 
     const offerShift = async (swap: ShiftSwap) => {
         setSwaps(prev => [swap, ...prev]);
+        const success = await SupabaseService.createShiftSwap(swap);
+        if (!success) {
+            setSwaps(prev => prev.filter(s => s.id !== swap.id));
+        }
+    };
+
+    const updateSwapStatus = async (swapId: string, status: 'approved' | 'rejected' | 'claimed') => {
+        const original = swaps.find(s => s.id === swapId);
+        setSwaps(prev => prev.map(s => s.id === swapId ? { ...s, status } : s));
+        const success = await SupabaseService.updateShiftSwapStatus(swapId, status);
+        if (!success && original) {
+            setSwaps(prev => prev.map(s => s.id === swapId ? original : s));
+        }
     };
 
     const sendMessage = async (msg: Message) => {
@@ -1011,7 +1044,9 @@ export const OpsCenterProvider: React.FC<{ children: ReactNode }> = ({ children 
             clockOut,
             updateTimeEntry,
             submitTimeOff,
+            updateRequestStatus,
             offerShift,
+            updateSwapStatus,
             sendMessage,
             deleteMessage,
             deleteConversation,
