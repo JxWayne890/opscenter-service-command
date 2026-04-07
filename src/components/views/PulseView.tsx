@@ -18,7 +18,7 @@ interface PilotMessage {
 }
 
 const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) => {
-    const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser } = useOpsCenter();
+    const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser, clients, payStubs, requests, swaps, organization } = useOpsCenter();
     usePageTitle('Dashboard');
     const [currentTime, setCurrentTime] = React.useState(new Date());
     const [rosterFilter, setRosterFilter] = React.useState<'all' | 'manager' | 'staff'>('all');
@@ -150,10 +150,9 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                 id: `assistant-${Date.now()}`,
                 role: 'assistant',
                 content: buildOpsPilotReply(nextPrompt, {
-                    knowledgeBase,
-                    shifts,
-                    staff,
-                    timeEntries
+                    knowledgeBase, shifts, staff, timeEntries,
+                    currentUser: currentUser!,
+                    clients, payStubs, requests, swaps, organization,
                 })
             };
 

@@ -4,6 +4,7 @@ import { AlertTriangle, Download, Trash2, X, CheckCircle, Lock, Loader2 } from '
 import { OffboardingService } from '../../services/offboarding';
 import { Profile } from '../../types';
 import { AuthService } from '../../services/supabase';
+import { ErrorTracking } from '../../services/errorTracking';
 
 interface OffboardingModalProps {
     isOpen: boolean;
@@ -40,7 +41,7 @@ const OffboardingModal: React.FC<OffboardingModalProps> = ({ isOpen, onClose, st
             setHasDownloaded(true);
             setStep('ready');
         } catch (error) {
-            console.error("Download failed", error);
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'OffboardingModal.download' });
             setStep('confirm');
         }
     };
@@ -121,7 +122,7 @@ const OffboardingModal: React.FC<OffboardingModalProps> = ({ isOpen, onClose, st
             onSuccess();
             onClose();
         } catch (error) {
-            console.error("Deletion failed", error);
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'OffboardingModal.deletion' });
             setIsDeleting(false);
             setStep('password');
             setPasswordError('Failed to delete. Please try again.');
@@ -153,7 +154,7 @@ const OffboardingModal: React.FC<OffboardingModalProps> = ({ isOpen, onClose, st
                                 {staffMembers.length}
                             </div>
                         ) : (
-                            <img src={staffMembers[0]?.avatar_url} className="w-12 h-12 rounded-full object-cover grayscale" alt="" />
+                            <img src={staffMembers[0]?.avatar_url} className="w-12 h-12 rounded-full object-cover grayscale" alt={`${staffMembers[0]?.full_name}'s avatar`} />
                         )}
                         <div>
                             <div className="font-bold text-slate-900">{nameDisplay}</div>
@@ -197,7 +198,7 @@ const OffboardingModal: React.FC<OffboardingModalProps> = ({ isOpen, onClose, st
                                             </button>
                                             <button
                                                 onClick={() => { setSkipPhase('first'); setPassword(''); }}
-                                                className="text-[10px] font-black text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-wider text-left pl-1"
+                                                className="text-xs font-black text-slate-400 hover:text-rose-500 transition-colors uppercase tracking-wider text-left pl-1"
                                             >
                                                 Delete without download
                                             </button>
@@ -205,12 +206,12 @@ const OffboardingModal: React.FC<OffboardingModalProps> = ({ isOpen, onClose, st
                                     ) : (
                                         <div className="bg-white/50 border border-slate-200 p-3 rounded-xl space-y-3 animate-in fade-in slide-in-from-top-1 duration-300">
                                             <div className="flex items-center justify-between">
-                                                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Secure Override</div>
-                                                <button onClick={() => setSkipPhase('init')} className="text-[10px] font-bold text-slate-400 hover:text-slate-600">Cancel</button>
+                                                <div className="text-xs font-black text-slate-500 uppercase tracking-widest">Secure Override</div>
+                                                <button onClick={() => setSkipPhase('init')} className="text-xs font-bold text-slate-400 hover:text-slate-600">Cancel</button>
                                             </div>
 
                                             {passwordError && (
-                                                <p className="text-[10px] font-bold text-rose-500">{passwordError}</p>
+                                                <p className="text-xs font-bold text-rose-500">{passwordError}</p>
                                             )}
 
                                             <div className="space-y-2">
@@ -236,7 +237,7 @@ const OffboardingModal: React.FC<OffboardingModalProps> = ({ isOpen, onClose, st
 
                                                 <button
                                                     onClick={handleSkipVerification}
-                                                    className="w-full py-2 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-colors"
+                                                    className="w-full py-2 bg-slate-900 text-white text-xs font-black uppercase tracking-widest rounded-lg hover:bg-slate-800 transition-colors"
                                                 >
                                                     {skipPhase === 'first' ? 'Next Step' : 'Verify Override'}
                                                 </button>

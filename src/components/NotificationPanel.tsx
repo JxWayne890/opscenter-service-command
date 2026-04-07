@@ -51,14 +51,14 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-0 top-full mt-2 w-96 max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+      <div role="region" aria-label="Notifications" aria-live="polite" className="absolute right-0 top-full mt-2 w-96 max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Bell size={18} className="text-slate-700" />
             <h3 className="font-bold text-slate-900 text-sm">Notifications</h3>
             {unreadCount > 0 && (
-              <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-[10px] font-bold rounded-full">
+              <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">
                 {unreadCount}
               </span>
             )}
@@ -105,7 +105,7 @@ const NotificationPanel: React.FC<NotificationPanelProps> = ({ isOpen, onClose }
                     {n.title}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5 truncate">{n.message}</p>
-                  <p className="text-[10px] text-slate-300 mt-1 font-medium">{timeAgo(n.created_at)}</p>
+                  <p className="text-xs text-slate-300 mt-1 font-medium">{timeAgo(n.created_at)}</p>
                 </div>
                 {!n.read && (
                   <div className="w-2 h-2 bg-indigo-500 rounded-full mt-1.5 flex-shrink-0" />

@@ -5,8 +5,10 @@ import { useOpsCenter } from '../../services/store';
 import { Clock, MapPin, CalendarDays, UserCog, Coffee } from 'lucide-react';
 import RequestModal from '../requests/RequestModal';
 import AvailabilityModal from '../availability/AvailabilityModal';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 const TimeClockView = () => {
+    usePageTitle('Time Clock');
     const { timeEntries, currentUser } = useOpsCenter();
     const [isRequestModalOpen, setRequestModalOpen] = useState(false);
     const [isAvailabilityModalOpen, setAvailabilityModalOpen] = useState(false);
@@ -22,7 +24,7 @@ const TimeClockView = () => {
             <RequestModal isOpen={isRequestModalOpen} onClose={() => setRequestModalOpen(false)} />
             <AvailabilityModal isOpen={isAvailabilityModalOpen} onClose={() => setAvailabilityModalOpen(false)} />
 
-            <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Time Clock</h2>
+            <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Time Clock</h1>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 {/* Main Punch Pad */}
@@ -77,16 +79,16 @@ const TimeClockView = () => {
                                             {new Date(entry.clock_in).toLocaleDateString()}
                                         </p>
                                         <div className="flex items-center space-x-2 mt-1">
-                                            <span className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-500 font-mono">
+                                            <span className="text-xs bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-500 font-mono">
                                                 {new Date(entry.clock_in).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                             </span>
                                             <span className="text-slate-300">-</span>
                                             {entry.clock_out ? (
-                                                <span className="text-[10px] bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-500 font-mono">
+                                                <span className="text-xs bg-white border border-slate-200 px-1.5 py-0.5 rounded text-slate-500 font-mono">
                                                     {new Date(entry.clock_out).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             ) : (
-                                                <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">
+                                                <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">
                                                     Active
                                                 </span>
                                             )}
@@ -104,7 +106,7 @@ const TimeClockView = () => {
 
                                                     return (
                                                         <div key={i} className="flex items-center space-x-2">
-                                                            <div className="flex items-center space-x-1.5 text-[10px] bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-100">
+                                                            <div className="flex items-center space-x-1.5 text-xs bg-amber-50 text-amber-800 px-2 py-0.5 rounded border border-amber-100">
                                                                 <span className="font-mono font-medium opacity-80">
                                                                     {new Date(b.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                                                                     {' - '}
@@ -112,7 +114,7 @@ const TimeClockView = () => {
                                                                 </span>
                                                             </div>
                                                             {duration > 0 && (
-                                                                <div className="flex items-center space-x-1 text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold" title="Lunch Duration">
+                                                                <div className="flex items-center space-x-1 text-xs bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold" title="Lunch Duration">
                                                                     <Coffee size={10} />
                                                                     <span>{duration}m</span>
                                                                 </div>
@@ -126,7 +128,7 @@ const TimeClockView = () => {
                                             !!entry.total_break_minutes && entry.total_break_minutes > 0 && (
                                                 <div className="flex items-center space-x-1 text-amber-600 bg-amber-50 px-2 py-1 rounded-md border border-amber-100" title="Total Lunch Time">
                                                     <Coffee size={12} />
-                                                    <span className="text-[10px] font-bold">{entry.total_break_minutes}m</span>
+                                                    <span className="text-xs font-bold">{entry.total_break_minutes}m</span>
                                                 </div>
                                             )
                                         )}

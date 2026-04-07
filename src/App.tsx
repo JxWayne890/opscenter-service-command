@@ -7,6 +7,7 @@ import LoginScreen from './components/LoginScreen';
 import ViewErrorBoundary from './components/ViewErrorBoundary';
 import { OpsCenterProvider, useOpsCenter } from './services/store';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { ToastProvider } from './components/ui/Toast';
 
 // Lazy-loaded views for code splitting
 const PulseView = lazy(() => import('./components/views/PulseView'));
@@ -152,13 +153,15 @@ const App: React.FC = () => {
   return (
     <BrowserRouter>
       <OpsCenterProvider>
-        <Suspense fallback={<ViewSpinner />}>
-          <Routes>
-            <Route path="/portal/login" element={<PortalLogin />} />
-            <Route path="/portal/dashboard" element={<PortalDashboard />} />
-            <Route path="/*" element={<DashboardContent />} />
-          </Routes>
-        </Suspense>
+        <ToastProvider>
+          <Suspense fallback={<ViewSpinner />}>
+            <Routes>
+              <Route path="/portal/login" element={<PortalLogin />} />
+              <Route path="/portal/dashboard" element={<PortalDashboard />} />
+              <Route path="/*" element={<DashboardContent />} />
+            </Routes>
+          </Suspense>
+        </ToastProvider>
       </OpsCenterProvider>
     </BrowserRouter>
   );

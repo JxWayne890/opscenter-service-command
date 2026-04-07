@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Loader2, MessageSquare, Image as ImageIcon, Search, MoreVertical, CheckSquare, PlusCircle } from 'lucide-react';
 import { supabase } from '../../services/db';
 import { Message, Profile, Client } from '../../types';
+import { ErrorTracking } from '../../services/errorTracking';
 
 // Helper: Get Initials
 const getInitials = (name: string) => {
@@ -144,7 +145,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                     setActiveConversationId(validProfiles[0].id);
                 }
             } catch (err) {
-                console.error('Error fetching contacts:', err);
+                ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Fetch contacts' });
             } finally {
                 setLoading(false);
             }
@@ -169,7 +170,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                 if (msgError) throw msgError;
                 setMessages(msgData || []);
             } catch (err) {
-                console.error('Error fetching messages:', err);
+                ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Fetch messages' });
             }
         };
 
@@ -223,10 +224,10 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                         if (data.success) {
                             uploadedUrls.push(data.data.url);
                         } else {
-                            console.error('Upload failed:', data.error);
+                            ErrorTracking.captureMessage('Upload failed', { error: data.error });
                         }
                     } catch (err) {
-                        console.error('Upload error:', err);
+                        ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Upload error' });
                     }
                 }
 
@@ -242,8 +243,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                     };
                     const { data: insertedMsg, error: insertError } = await supabase.from('messages').insert([msg]).select().single();
                     if (insertError) {
-                        console.error('Supabase insert error (images):', insertError);
-                        alert(`Failed to send images: ${insertError.message}`);
+                        ErrorTracking.captureMessage('Supabase insert error (images)', { error: insertError.message });
                     } else if (insertedMsg) {
                         setMessages(prev => [...prev, insertedMsg]);
                     }
@@ -261,8 +261,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                 };
                 const { data: insertedMsg, error: insertError } = await supabase.from('messages').insert([msg]).select().single();
                 if (insertError) {
-                    console.error('Supabase insert error (text):', insertError);
-                    alert(`Failed to send message: ${insertError.message}`);
+                    ErrorTracking.captureMessage('Supabase insert error (text)', { error: insertError.message });
                 } else if (insertedMsg) {
                     setMessages(prev => [...prev, insertedMsg]);
                 }
@@ -271,7 +270,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
             setNewMessageText('');
             setPendingFiles([]);
         } catch (err) {
-            console.error('Error sending:', err);
+            ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Send message' });
         } finally {
             setSending(false);
         }
@@ -404,7 +403,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                                                     <h3 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>
                                                         {contact.full_name}
                                                     </h3>
-                                                    <span className={`text-[10px] font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{timeText}</span>
+                                                    <span className={`text-xs font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{timeText}</span>
                                                 </div>
                                                 <p className={`text-xs truncate font-medium ${isSelected ? 'text-indigo-600' : 'text-slate-500 group-hover:text-slate-600'}`}>
                                                     {previewText}
@@ -443,7 +442,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                                         <h3 className="font-bold text-slate-900 text-sm">{activeContact.full_name}</h3>
                                         <div className="flex items-center space-x-1.5">
                                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                            <span className="text-[10px] font-bold text-emerald-600">Online</span>
+                                            <span className="text-xs font-bold text-emerald-600">Online</span>
                                         </div>
                                     </div>
                                 </div>
@@ -475,7 +474,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
 
                                 {/* Date Separator */}
                                 <div className="flex justify-center my-4">
-                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/80 px-4 py-1.5 rounded-full backdrop-blur-sm border border-slate-200/50">Today</span>
+                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100/80 px-4 py-1.5 rounded-full backdrop-blur-sm border border-slate-200/50">Today</span>
                                 </div>
 
                                 {threadMessages.map(msg => {
@@ -507,7 +506,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                                                 <div className="relative">
                                                     {isGallery ? (
                                                         // Gallery Grid Layout (like iMessage/Messenger)
-                                                        <div className={`grid gap-1 rounded-lg overflow-hidden ${galleryUrls.length === 2 ? 'grid-cols-2' : galleryUrls.length >= 3 ? 'grid-cols-2' : 'grid-cols-1'}`} style={{ maxWidth: '280px' }}>
+                                                        <div className={`grid gap-1 rounded-lg overflow-hidden max-w-[280px] ${galleryUrls.length === 2 ? 'grid-cols-2' : galleryUrls.length >= 3 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                                                             {galleryUrls.slice(0, 4).map((url, idx) => (
                                                                 <div
                                                                     key={idx}
@@ -546,7 +545,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                                                         </div>
                                                     )}
                                                 </div>
-                                                <span className="text-[9px] font-bold text-slate-300 mt-1.5 px-1">
+                                                <span className="text-xs font-bold text-slate-300 mt-1.5 px-1">
                                                     {new Date(msg.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                                                 </span>
                                             </div>
@@ -572,7 +571,7 @@ const PortalCommsModal: React.FC<PortalCommsModalProps> = ({ isOpen, onClose, cl
                                             >
                                                 <X size={12} />
                                             </button>
-                                            <span className="text-[9px] text-slate-500 truncate block mt-1 w-full">{file.name}</span>
+                                            <span className="text-xs text-slate-500 truncate block mt-1 w-full">{file.name}</span>
                                         </div>
                                     ))}
                                 </div>

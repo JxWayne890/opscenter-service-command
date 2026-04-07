@@ -3,13 +3,16 @@ import { useOpsCenter } from '../../services/store';
 import { FinancialService } from '../../services/financial';
 import { BillingService } from '../../services/billing';
 import { FinancialMonthData } from '../../types';
+import { ErrorTracking } from '../../services/errorTracking';
 import SnapshotOverview from '../financial/SnapshotOverview';
 import BoardingCalculator from '../financial/BoardingCalculator';
 import ScenarioPlanner from '../financial/ScenarioPlanner';
 import { Calendar, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 const FinancialView: React.FC = () => {
     const { organization } = useOpsCenter();
+    usePageTitle('Financial');
     const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
     const [data, setData] = useState<FinancialMonthData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -41,7 +44,7 @@ const FinancialView: React.FC = () => {
             const payroll = BillingService.calculateMonthlyPayroll(timeEntries, staff, monthStr);
             setAutoPayroll(payroll);
         } catch (err) {
-            console.error("Failed to load financial data", err);
+            ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Financial data load' });
         } finally {
             setLoading(false);
         }

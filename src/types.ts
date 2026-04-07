@@ -130,6 +130,41 @@ export interface ShiftSwap {
   status: 'pending' | 'approved' | 'rejected' | 'claimed';
 }
 
+export interface ScheduleTemplate {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  shifts: TemplateShift[];
+  created_by: string;
+  created_at?: string;
+}
+
+export interface TemplateShift {
+  day_of_week: number; // 0=Mon, 1=Tue, ... 6=Sun
+  start_time: string; // "09:00"
+  end_time: string; // "17:00"
+  role_type: string;
+  user_id?: string;
+  is_open: boolean;
+}
+
+export interface CoverageRequirement {
+  id: string;
+  organization_id: string;
+  day_of_week: number; // 0=Mon ... 6=Sun
+  role_type: string;
+  required_count: number;
+}
+
+export interface ScheduleConflict {
+  type: 'double_booking' | 'time_off' | 'availability' | 'overtime';
+  shift_id: string;
+  user_id: string;
+  message: string;
+  severity: 'error' | 'warning';
+}
+
 export interface Message {
   id: string;
   organization_id: string;

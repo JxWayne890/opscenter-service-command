@@ -3,7 +3,7 @@ import { supabase } from '../../services/db';
 import { useNavigate } from 'react-router-dom';
 import { Client, Pet } from '../../types';
 import { LogOut, Phone, MessageSquare, User, LayoutGrid, Calendar, X, Edit, Save, AlertCircle } from 'lucide-react';
-
+import { ErrorTracking } from '../../services/errorTracking';
 import PortalCommsModal from './PortalCommsModal';
 
 const PortalDashboard = () => {
@@ -50,7 +50,7 @@ const PortalDashboard = () => {
                 setPets(petData || []);
 
             } catch (err) {
-                console.error('Error fetching portal data:', err);
+                ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Portal data fetch' });
                 navigate('/portal/login');
             } finally {
                 setLoading(false);
@@ -106,8 +106,7 @@ const PortalDashboard = () => {
             setSelectedPet({ ...selectedPet, ...editPetData } as Pet);
             setIsEditing(false);
         } catch (err) {
-            console.error('Error updating pet:', err);
-            alert('Failed to save changes. Please try again.');
+            ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Update pet' });
         }
     };
 
@@ -296,7 +295,7 @@ const PortalDashboard = () => {
                     >
 
                         {/* Left Column: Photo Area */}
-                        <div className="w-full md:w-[45%] bg-gray-900 relative flex items-center justify-center p-8">
+                        <div className="w-full md:w-5/12 bg-gray-900 relative flex items-center justify-center p-8">
                             <img
                                 src={selectedPet.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedPet.name)}&background=random&size=400`}
                                 alt={selectedPet.name}
@@ -313,7 +312,7 @@ const PortalDashboard = () => {
                         </div>
 
                         {/* Right Column: Details Area */}
-                        <div className="w-full md:w-[55%] flex flex-col h-full bg-white relative">
+                        <div className="w-full md:w-7/12 flex flex-col h-full bg-white relative">
                             {/* Desktop Close button */}
                             <button
                                 onClick={closePetModal}

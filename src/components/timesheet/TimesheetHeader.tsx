@@ -97,7 +97,7 @@ const TimesheetHeader: React.FC<TimesheetHeaderProps> = ({ entries, dateRange, s
                         <Clock size={24} />
                     </div>
                     <div>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Hours</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Hours</p>
                         <p className="text-2xl font-black text-slate-900">{TimeMath.formatDecimalHours(totalHours)}</p>
                     </div>
                 </div>
@@ -107,7 +107,7 @@ const TimesheetHeader: React.FC<TimesheetHeaderProps> = ({ entries, dateRange, s
                         <DollarSign size={24} />
                     </div>
                     <div>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Est. Payroll</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Est. Payroll</p>
                         <p className="text-2xl font-black text-slate-900">{TimeMath.formatCurrency(estPayroll)}</p>
                     </div>
                 </div>
@@ -117,7 +117,7 @@ const TimesheetHeader: React.FC<TimesheetHeaderProps> = ({ entries, dateRange, s
                         <Users size={24} />
                     </div>
                     <div>
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">OT Risk</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">OT Risk</p>
                         <p className="text-2xl font-black text-slate-900">{otRisk} <span className="text-sm font-medium text-slate-400">Staff</span></p>
                     </div>
                 </div>

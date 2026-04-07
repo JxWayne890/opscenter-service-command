@@ -3,13 +3,15 @@ import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
 import { getOvertimeStatuses } from '../../utils/overtime';
 import { isManager } from '../../services/permissions';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import { BarChart3, Users, Clock, DollarSign, TrendingUp, AlertTriangle, Calendar, CheckCircle2, Lock } from 'lucide-react';
 import SectionCard from '../SectionCard';
 
 const AnalyticsView = () => {
     const { staff, timeEntries, shifts, clients, payStubs, currentUser, organization } = useOpsCenter();
+    usePageTitle('Analytics');
 
-    if (currentUser.role === 'staff') {
+    if (!isManager(currentUser)) {
         return (
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
                 <Lock size={64} className="mb-4 opacity-20" />
@@ -130,7 +132,7 @@ const AnalyticsView = () => {
                     <div className="p-5">
                         <div className="flex items-center gap-2 mb-3">
                             <Clock size={16} className="text-indigo-500" />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Hours</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Hours</span>
                         </div>
                         <div className="text-2xl font-black text-slate-900">{TimeMath.formatDecimalHours(totalHoursThisWeek)}</div>
                         <div className="text-xs text-slate-400 mt-1">{activeStaffIds.length} staff clocked in</div>
@@ -141,7 +143,7 @@ const AnalyticsView = () => {
                     <div className="p-5">
                         <div className="flex items-center gap-2 mb-3">
                             <DollarSign size={16} className="text-emerald-500" />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Est. Payroll</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Est. Payroll</span>
                         </div>
                         <div className="text-2xl font-black text-slate-900">{TimeMath.formatCurrency(estimatedPayroll)}</div>
                         <div className="text-xs text-slate-400 mt-1">Avg {TimeMath.formatCurrency(activeStaffIds.length > 0 ? estimatedPayroll / activeStaffIds.length : 0)}/person</div>
@@ -152,7 +154,7 @@ const AnalyticsView = () => {
                     <div className="p-5">
                         <div className="flex items-center gap-2 mb-3">
                             <Users size={16} className="text-blue-500" />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Utilization</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Utilization</span>
                         </div>
                         <div className="text-2xl font-black text-slate-900">{utilization.toFixed(0)}%</div>
                         <div className="text-xs text-slate-400 mt-1">{activeStaffIds.length} of {activeStaff.length} active staff</div>
@@ -163,7 +165,7 @@ const AnalyticsView = () => {
                     <div className="p-5">
                         <div className="flex items-center gap-2 mb-3">
                             <AlertTriangle size={16} className={overtimeCount > 0 ? 'text-rose-500' : approachingCount > 0 ? 'text-amber-500' : 'text-slate-300'} />
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Overtime</span>
+                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Overtime</span>
                         </div>
                         <div className="text-2xl font-black text-slate-900">{overtimeCount}</div>
                         <div className="text-xs text-slate-400 mt-1">
@@ -198,14 +200,14 @@ const AnalyticsView = () => {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-bold text-slate-900 truncate">{p.employee.full_name}</span>
-                                                    {ot?.isOvertime && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-bold rounded-full">OT</span>}
-                                                    {ot?.isApproaching && !ot?.isOvertime && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full">!</span>}
+                                                    {ot?.isOvertime && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs font-bold rounded-full">OT</span>}
+                                                    {ot?.isApproaching && !ot?.isOvertime && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full">!</span>}
                                                 </div>
                                                 <span className="text-xs text-slate-400">{p.employee.role}</span>
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-sm font-bold text-slate-900">{TimeMath.formatDecimalHours(p.hours)}</div>
-                                                <div className="text-[10px] text-slate-400">{TimeMath.formatCurrency(p.hours * (p.employee.hourly_rate || 0))}</div>
+                                                <div className="text-xs text-slate-400">{TimeMath.formatCurrency(p.hours * (p.employee.hourly_rate || 0))}</div>
                                             </div>
                                         </div>
                                     );
@@ -264,19 +266,19 @@ const AnalyticsView = () => {
             {/* Quick Stats Row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Active Staff</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Active Staff</div>
                     <div className="text-xl font-black text-slate-900">{activeStaff.length}</div>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Clients</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Total Clients</div>
                     <div className="text-xl font-black text-slate-900">{clients.length}</div>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pay Stubs</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Pay Stubs</div>
                     <div className="text-xl font-black text-slate-900">{payStubs.length}</div>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Pay Period</div>
+                    <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">Pay Period</div>
                     <div className="text-xl font-black text-slate-900 capitalize">{organization?.pay_period || 'Weekly'}</div>
                 </div>
             </div>

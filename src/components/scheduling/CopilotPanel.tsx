@@ -3,6 +3,7 @@ import { Play, Save, Settings, Users, AlertCircle } from 'lucide-react';
 import { ScheduleGenerator } from '../../services/scheduler/generator';
 import { StaffingRatio, Shift } from '../../types';
 import { supabase } from '../../services/supabase';
+import { ErrorTracking } from '../../services/errorTracking';
 import { useOpsCenter } from '../../services/store';
 
 const CopilotPanel: React.FC = () => {
@@ -90,7 +91,7 @@ const CopilotPanel: React.FC = () => {
         })));
 
         if (error) {
-            console.error(error);
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'CopilotPanel' });
             setSaveStatus('error');
         } else {
             setSaveStatus('saved');
@@ -124,7 +125,7 @@ const CopilotPanel: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="col-span-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Projected Daily Counts</div>
+                    <div className="col-span-3 text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Projected Daily Counts</div>
                     <div>
                         <label className="block text-xs font-bold text-slate-600 mb-1">Daycare</label>
                         <input type="number" value={counts.daycare} onChange={e => setCounts({ ...counts, daycare: parseInt(e.target.value) })} className="w-full p-2 text-center bg-white border border-slate-200 rounded-lg font-bold text-brand-blue" />
@@ -169,7 +170,7 @@ const CopilotPanel: React.FC = () => {
                             <div key={i} className="text-xs p-2 bg-slate-50 rounded-lg border border-slate-100 flex justify-between items-center text-slate-600">
                                 <span className="font-bold">{new Date(s.start_time).toLocaleDateString()}</span>
                                 <span className="truncate max-w-[100px]">{s.role_type}</span>
-                                <span className="text-[10px] px-1.5 py-0.5 bg-white border rounded text-slate-400">{new Date(s.start_time).getHours()}:00 - {new Date(s.end_time).getHours()}:00</span>
+                                <span className="text-xs px-1.5 py-0.5 bg-white border rounded text-slate-400">{new Date(s.start_time).getHours()}:00 - {new Date(s.end_time).getHours()}:00</span>
                             </div>
                         ))}
                         {generatedShifts.length > 10 && (

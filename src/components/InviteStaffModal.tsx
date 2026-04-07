@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Mail, Shield, ChevronDown, Loader2, Check, Copy, CheckCircle } from 'lucide-react';
 import { useOpsCenter } from '../services/store';
 import { SupabaseService } from '../services/db';
+import { ErrorTracking } from '../services/errorTracking';
 
 const ROLES = [
     { value: 'staff', label: 'Staff Member', description: 'View schedule, clock in/out' },
@@ -77,7 +78,7 @@ const InviteStaffModal = () => {
 
             setSuccess(true);
         } catch (error) {
-            console.error(error);
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'InviteStaff' });
         } finally {
             setIsLoading(false);
         }
@@ -112,7 +113,7 @@ const InviteStaffModal = () => {
                         <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100">
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-1">Organization Invite Code</p>
+                                    <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">Organization Invite Code</p>
                                     <p className="text-2xl font-black text-indigo-900 tracking-widest">{inviteCode}</p>
                                 </div>
                                 <button
@@ -122,7 +123,7 @@ const InviteStaffModal = () => {
                                     {copied ? <CheckCircle size={20} /> : <Copy size={20} />}
                                 </button>
                             </div>
-                            <p className="text-[11px] text-indigo-500 mt-2">Share this code with new team members</p>
+                            <p className="text-xs text-indigo-500 mt-2">Share this code with new team members</p>
                         </div>
                     )}
 
@@ -145,7 +146,7 @@ const InviteStaffModal = () => {
                     ) : (
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="space-y-2">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Email Address</label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                                     <input
@@ -160,7 +161,7 @@ const InviteStaffModal = () => {
                             </div>
 
                             <div className="space-y-2 relative" ref={dropdownRef}>
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Role</label>
+                                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Role</label>
                                 <div
                                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                                     className={`w-full bg-slate-50 border border-slate-200 rounded-2xl py-4 pl-12 pr-10 text-sm font-bold text-slate-900 flex items-center justify-between cursor-pointer focus:ring-2 focus:ring-indigo-500/20 transition-all ${isDropdownOpen ? 'ring-2 ring-indigo-500/20' : ''}`}
@@ -217,7 +218,7 @@ const InviteStaffModal = () => {
                     )}
                 </div>
                 <div className="bg-slate-50 p-6 text-center border-t border-slate-100">
-                    <p className="text-[10px] text-slate-400 font-medium">
+                    <p className="text-xs text-slate-400 font-medium">
                         The invite will be recorded. Share the code <strong>{inviteCode}</strong> with them.
                     </p>
                 </div>

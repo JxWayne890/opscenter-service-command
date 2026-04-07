@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { Plus, Search, ChevronRight } from 'lucide-react';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
-
+import { useToast } from '../ui/Toast';
+import { usePageTitle } from '../../hooks/usePageTitle';
 import { isManager } from '../../services/permissions';
 
 const KnowledgeHub = () => {
     const { searchKnowledge, currentUser } = useOpsCenter();
+    const { showToast } = useToast();
+    usePageTitle('Knowledge Hub');
     const [query, setQuery] = useState('');
 
     // In a real app we might debounce this, but local filtering is fast enough
@@ -15,9 +18,9 @@ const KnowledgeHub = () => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div className="flex justify-between items-center">
-                <h2 className="text-3xl font-extrabold tracking-tight">Staff FAQ & Knowledge</h2>
+                <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Staff FAQ & Knowledge</h1>
                 {isManager(currentUser) && (
-                    <button className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold text-xs shadow-lg flex items-center space-x-2 active:scale-95 transition-transform" onClick={() => alert('Create SOP Modal would open here')}>
+                    <button className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold text-xs shadow-lg flex items-center space-x-2 active:scale-95 transition-transform" onClick={() => showToast('Create SOP coming soon', 'info')}>
                         <Plus size={16} />
                         <span>Create SOP</span>
                     </button>
@@ -37,7 +40,7 @@ const KnowledgeHub = () => {
                 {entries.length > 0 ? entries.map(entry => (
                     <SectionCard key={entry.id} className="hover:scale-[1.02] transition-transform cursor-pointer">
                         <div className="flex justify-between items-start mb-4">
-                            <span className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest px-2 py-1 bg-indigo-50 rounded-md">{entry.category}</span>
+                            <span className="text-xs font-extrabold text-indigo-600 uppercase tracking-widest px-2 py-1 bg-indigo-50 rounded-md">{entry.category}</span>
                             <ChevronRight size={16} className="text-slate-300" />
                         </div>
                         <h4 className="font-bold text-lg mb-2">{entry.title}</h4>

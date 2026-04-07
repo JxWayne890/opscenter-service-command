@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../../services/db';
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight, AlertCircle, Dog } from 'lucide-react';
+import { ErrorTracking } from '../../services/errorTracking';
 
 const PortalLogin = () => {
     const navigate = useNavigate();
@@ -43,7 +44,7 @@ const PortalLogin = () => {
             navigate('/portal/dashboard');
 
         } catch (err: any) {
-            console.error(err);
+            ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Portal login' });
             setError(err.message || 'Access denied.');
         } finally {
             setLoading(false);

@@ -6,11 +6,13 @@ import CheckInModal from '../clients/CheckInModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { useOpsCenter } from '../../services/store';
 import { formatPhoneNumber } from '../../utils/formatters';
+import { usePageTitle } from '../../hooks/usePageTitle';
 
 // Mock Data Generation
 
 
 const ClientsView: React.FC = () => {
+    usePageTitle('Clients');
     const { clients, addClient, deleteClient, deleteClientsBulk, assignments, staff, assignPet, unassignPet } = useOpsCenter();
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
@@ -100,7 +102,7 @@ const ClientsView: React.FC = () => {
             {/* Header */}
             <header className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
+                    <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight flex items-center gap-3">
                         <Dog className="text-brand-blue" size={32} />
                         Clients & Pets
                     </h1>
@@ -262,11 +264,11 @@ const ClientsView: React.FC = () => {
                                                         <h4 className="font-bold text-slate-900 truncate">{pet.name}</h4>
                                                         <div className="flex gap-1 items-center">
                                                             {pet.is_spayed_neutered && (
-                                                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                                                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                                                                     {pet.gender === 'male' ? 'NEUTERED' : 'SPAYED'}
                                                                 </span>
                                                             )}
-                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${pet.gender === 'male'
+                                                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded border ${pet.gender === 'male'
                                                                 ? 'text-blue-600 bg-blue-50 border-blue-200'
                                                                 : 'text-pink-600 bg-pink-50 border-pink-200'
                                                                 }`}>
@@ -281,13 +283,13 @@ const ClientsView: React.FC = () => {
                                                     {/* Tags */}
                                                     <div className="flex flex-wrap gap-1 mt-2">
                                                         {pet.medical_alerts && pet.medical_alerts.length > 0 && (
-                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
+                                                            <span className="inline-flex items-center gap-0.5 text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-100">
                                                                 <AlertCircle size={8} />
                                                                 {pet.medical_alerts[0]}
                                                             </span>
                                                         )}
                                                         {pet.behavior_tags && pet.behavior_tags.length > 0 && (
-                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                                                            <span className="inline-flex items-center gap-0.5 text-xs font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
                                                                 <Star size={8} />
                                                                 {pet.behavior_tags[0]}
                                                             </span>
@@ -316,7 +318,7 @@ const ClientsView: React.FC = () => {
                 <div className="absolute inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end animate-in fade-in duration-200" onClick={() => setSelectedClient(null)}>
                     {/* Side Drawer */}
                     <div
-                        className="w-full lg:w-[600px] bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col"
+                        className="w-full lg:w-2/5 xl:w-[600px] bg-white h-full shadow-2xl animate-in slide-in-from-right duration-300 flex flex-col"
                         onClick={e => e.stopPropagation()}
                     >
                         {/* Drawer Header */}

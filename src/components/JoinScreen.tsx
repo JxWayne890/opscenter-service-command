@@ -205,7 +205,7 @@ const JoinScreen: React.FC<JoinScreenProps> = ({ onJoinSuccess, onBackToLogin })
                                 </div>
                                 <div>
                                     <p className="text-sm font-bold text-emerald-900">Joining {organization?.name}</p>
-                                    <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Role: {inviteRole}</p>
+                                    <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider">Role: {inviteRole}</p>
                                 </div>
                             </div>
 
@@ -297,7 +297,7 @@ const JoinScreen: React.FC<JoinScreenProps> = ({ onJoinSuccess, onBackToLogin })
                     )}
                 </div>
 
-                <p className="text-center text-[10px] font-bold text-slate-400 mt-8 uppercase tracking-[0.2em] opacity-60">
+                <p className="text-center text-xs font-bold text-slate-400 mt-8 uppercase tracking-[0.2em] opacity-60">
                     Provider OS Premium v2.4.0
                 </p>
             </div>

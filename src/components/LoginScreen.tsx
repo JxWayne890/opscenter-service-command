@@ -162,7 +162,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                     {/* Divider */}
                     <div className="flex items-center my-8">
                         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
-                        <span className="px-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest">Or continue with</span>
+                        <span className="px-4 text-xs text-slate-400 font-bold uppercase tracking-widest">Or continue with</span>
                         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
                     </div>
 
@@ -183,12 +183,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
                         >
                             <KeyRound size={24} className="mb-2 text-white/90 group-hover/opt:scale-110 transition-transform" />
                             <span className="text-xs font-bold">Have an Invite?</span>
-                            <span className="text-[10px] text-white/70 mt-1">Join your team</span>
+                            <span className="text-xs text-white/70 mt-1">Join your team</span>
                         </button>
                     </div>
                 </div>
 
-                <p className="text-center text-[10px] font-bold text-slate-400 mt-8 uppercase tracking-[0.2em] opacity-60">
+                <p className="text-center text-xs font-bold text-slate-400 mt-8 uppercase tracking-[0.2em] opacity-60">
                     &copy; {new Date().getFullYear()} Provider OS Premium
                 </p>
             </div>

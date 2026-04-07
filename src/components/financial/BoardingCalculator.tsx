@@ -65,7 +65,7 @@ const BoardingCalculator: React.FC<Props> = ({ data, onUpdate }) => {
                                 className="w-full pl-7 pr-3 py-2.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-900 focus:ring-2 focus:ring-brand-blue/20 outline-none"
                             />
                         </div>
-                        <p className="text-[10px] text-slate-400 mt-1">
+                        <p className="text-xs text-slate-400 mt-1">
                             Break-Even: ${breakEven.toLocaleString()}
                         </p>
                     </div>

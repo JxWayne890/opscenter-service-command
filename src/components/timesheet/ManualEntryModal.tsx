@@ -204,7 +204,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
                             {/* Calculation Preview */}
                             {(clockInTime && clockOutTime) && (
                                 <div className="col-span-2 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                                    <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+                                    <div className="flex justify-between items-center text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
                                         <span>Calculation Preview</span>
                                         <Clock size={12} className="text-indigo-400" />
                                     </div>
@@ -223,13 +223,13 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
                                                     return `${h}h ${m}m`;
                                                 })()}
                                             </div>
-                                            <div className="text-[9px] text-slate-400 font-bold uppercase">Total Span</div>
+                                            <div className="text-xs text-slate-400 font-bold uppercase">Total Span</div>
                                         </div>
                                         <div className="text-center">
                                             <div className="text-sm font-black text-amber-600 border-b border-amber-100 pb-1 mb-1">
                                                 -{TimeMath.formatMinutes(breakMinutes)}
                                             </div>
-                                            <div className="text-[9px] text-slate-400 font-bold uppercase">Break</div>
+                                            <div className="text-xs text-slate-400 font-bold uppercase">Break</div>
                                         </div>
                                         <div className="text-center border-l border-slate-200">
                                             <div className="text-sm font-black text-indigo-600 border-b border-indigo-100 pb-1 mb-1">
@@ -242,7 +242,7 @@ const ManualEntryModal: React.FC<ManualEntryModalProps> = ({ isOpen, onClose, ed
                                                     return TimeMath.formatDecimalHours(TimeMath.msToDecimalHours(netMS));
                                                 })()}
                                             </div>
-                                            <div className="text-[9px] text-slate-400 font-bold uppercase">Net Worked</div>
+                                            <div className="text-xs text-slate-400 font-bold uppercase">Net Worked</div>
                                         </div>
                                     </div>
                                 </div>

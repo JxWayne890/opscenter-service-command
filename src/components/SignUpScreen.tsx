@@ -215,7 +215,7 @@ const SignUpScreen: React.FC<SignUpScreenProps> = ({ onSignUpSuccess, onBackToLo
                     </form>
                 </div>
 
-                <p className="text-center text-[10px] font-bold text-slate-400 mt-6 uppercase tracking-[0.2em] opacity-60">
+                <p className="text-center text-xs font-bold text-slate-400 mt-6 uppercase tracking-[0.2em] opacity-60">
                     Terms & Privacy Policy
                 </p>
             </div>
