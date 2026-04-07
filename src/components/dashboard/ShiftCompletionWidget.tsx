@@ -11,6 +11,7 @@ const ShiftCompletionWidget: React.FC<ShiftCompletionWidgetProps> = ({ className
     const { shifts, timeEntries, staff, currentUser } = useOpsCenter();
     const [viewMode, setViewMode] = useState<'today' | 'historical'>('today');
 
+    if (!currentUser) return null;
     const isAdmin = currentUser.role === 'owner' || currentUser.role === 'manager';
 
     // --- Logic: Completion Calculation ---
@@ -116,7 +117,7 @@ const ShiftCompletionWidget: React.FC<ShiftCompletionWidgetProps> = ({ className
                         <span className="text-4xl font-display font-bold tracking-tight text-slate-900 leading-none">
                             {isAdmin && viewMode === 'today' ? `${teamAverage}%` : `${Math.round(myTodayPct)}%`}
                         </span>
-                        <span className="text-[10px] font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full mt-1">
+                        <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full mt-1">
                             +2.4% vs last week
                         </span>
                     </div>
@@ -126,7 +127,7 @@ const ShiftCompletionWidget: React.FC<ShiftCompletionWidgetProps> = ({ className
                     {isAdmin && (
                         <button
                             onClick={() => setViewMode('today')}
-                            className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${viewMode === 'today'
+                            className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${viewMode === 'today'
                                     ? 'bg-white text-indigo-600 shadow-sm'
                                     : 'text-slate-400 hover:text-slate-600'
                                 }`}
@@ -136,7 +137,7 @@ const ShiftCompletionWidget: React.FC<ShiftCompletionWidgetProps> = ({ className
                     )}
                     <button
                         onClick={() => setViewMode('historical')}
-                        className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${viewMode === 'historical'
+                        className={`flex-1 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${viewMode === 'historical'
                                 ? 'bg-white text-indigo-600 shadow-sm'
                                 : 'text-slate-400 hover:text-slate-600'
                             }`}
@@ -173,7 +174,7 @@ const ShiftCompletionWidget: React.FC<ShiftCompletionWidgetProps> = ({ className
                                     />
                                     <div className="absolute opacity-0 group-hover:opacity-100 bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-xl shadow-xl transition-all z-20 whitespace-nowrap">
                                         {day.date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                                        <div className="text-[10px] opacity-80 font-normal">
+                                        <div className="text-xs opacity-80 font-normal">
                                             {typeof day.pct === 'number' ? `${Math.round(day.pct)}% Complete` : 'Off Duty'}
                                         </div>
                                         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-slate-900 rotate-45"></div>

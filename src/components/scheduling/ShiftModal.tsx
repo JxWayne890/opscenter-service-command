@@ -225,7 +225,7 @@ const ShiftModal: React.FC<ShiftModalProps> = ({ isOpen, onClose, editShift, def
                             {editShift ? 'Update shift details' : 'Schedule a new work shift'}
                         </p>
                     </div>
-                    <button onClick={onClose} aria-label="Close shift modal" className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                    <button onClick={onClose} aria-label="Close shift modal" className="p-3 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
                         <X size={24} />
                     </button>
                 </div>

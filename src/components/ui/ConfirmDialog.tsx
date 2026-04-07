@@ -62,7 +62,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
                 <button
                     onClick={onClose}
                     aria-label="Close dialog"
-                    className="absolute top-4 right-4 p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute top-4 right-4 p-3 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                 >
                     <X size={20} />
                 </button>

@@ -4,6 +4,8 @@ import { Shift, Profile, TimeEntry } from '../../types';
 import { TimeMath } from '../../utils/timeMath';
 import { useOpsCenter } from '../../services/store';
 import { isManager } from '../../services/permissions';
+import { useToast } from '../ui/Toast';
+import { ErrorTracking } from '../../services/errorTracking';
 import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface SmartRosterTableProps {
@@ -14,6 +16,7 @@ interface SmartRosterTableProps {
 
 const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberClick, onEditEntry }) => {
     const { currentUser, updateTimeEntry, deleteTimeEntries, clockOut, staff } = useOpsCenter();
+    const { showToast } = useToast();
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -35,10 +38,16 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
     };
 
     const handleBulkApprove = async () => {
-        for (const id of Array.from(selectedIds)) {
-            await updateTimeEntry(id, { status: 'approved' });
+        try {
+            for (const id of Array.from(selectedIds)) {
+                await updateTimeEntry(id, { status: 'approved' });
+            }
+            showToast(`${selectedIds.size} entries approved successfully!`);
+            setSelectedIds(new Set());
+        } catch (error) {
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)));
+            showToast('Failed to approve some entries. Please try again.', 'error');
         }
-        setSelectedIds(new Set());
     };
 
     const handleBulkDelete = async () => {
@@ -50,16 +59,16 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
     // Helper for Status Badge
     const getStatusBadge = (status: TimeEntry['status']) => {
         if (status === 'active') {
-            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide animate-pulse">Live</span>;
+            return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide animate-pulse">Live</span>;
         }
         switch (status) {
             case 'approved':
-                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 uppercase tracking-wide flex items-center gap-1"><Lock size={10} /> Approved</span>;
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-indigo-100 text-indigo-800 uppercase tracking-wide flex items-center gap-1"><Lock size={10} /> Approved</span>;
             case 'rejected':
-                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 uppercase tracking-wide">Rejected</span>;
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-800 uppercase tracking-wide">Rejected</span>;
             case 'pending_approval':
             default:
-                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 uppercase tracking-wide">Pending Approval</span>;
+                return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 uppercase tracking-wide">Pending Approval</span>;
         }
     };
 
@@ -108,13 +117,13 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                                     />
                                 </th>
                             )}
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Staff Member</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Actual Time</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Break</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Worked</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Status</th>
-                            <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Staff Member</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Type</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Actual Time</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Break</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Worked</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Status</th>
+                            <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -157,7 +166,7 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                                                 <div className="text-sm font-bold text-slate-900 hover:text-indigo-600 transition-colors">
                                                     {fullName}
                                                 </div>
-                                                {isMe && <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded">YOU</span>}
+                                                {isMe && <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-1.5 rounded">YOU</span>}
                                             </div>
                                         </div>
                                     </td>
@@ -201,17 +210,18 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                                                 isMe ? (
                                                     <button
                                                         onClick={() => clockOut()}
-                                                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-[10px] font-bold hover:bg-red-200 transition-colors flex items-center gap-1"
+                                                        className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 transition-colors flex items-center gap-1"
                                                     >
                                                         <LogOut size={12} /> Clock Out
                                                     </button>
                                                 ) : (
                                                     <button
-                                                        onClick={() => alert('Force clock out moved to Staff View')}
-                                                        className="px-3 py-1.5 border border-red-200 text-red-600 rounded-lg text-[10px] font-bold hover:bg-red-50 transition-colors flex items-center gap-1"
-                                                        title="Force Clock Out (Manager)"
+                                                        onClick={() => {}}
+                                                        className="px-3 py-1.5 border border-slate-200 text-slate-400 rounded-lg text-xs font-bold cursor-not-allowed flex items-center gap-1"
+                                                        title="Use Staff View to force clock out"
+                                                        disabled
                                                     >
-                                                        <AlertCircle size={12} /> Force End
+                                                        <AlertCircle size={12} /> See Staff View
                                                     </button>
                                                 )
                                             ) : (
@@ -220,7 +230,7 @@ const SmartRosterTable: React.FC<SmartRosterTableProps> = ({ entries, onMemberCl
                                                     <div className="flex items-center gap-2">
                                                         <button
                                                             onClick={() => updateTimeEntry(entry.id, { status: 'approved' })}
-                                                            className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg text-[10px] font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
+                                                            className="px-3 py-1.5 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1"
                                                             title="Approve Entry"
                                                         >
                                                             <CheckCircle2 size={12} /> Approve

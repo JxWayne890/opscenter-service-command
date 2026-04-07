@@ -6,6 +6,8 @@ import TimesheetHeader from '../timesheet/TimesheetHeader';
 import SmartRosterTable from '../timesheet/SmartRosterTable';
 import { Mail, CalendarCheck, ArrowRightLeft, CheckCircle2, XCircle, Search, Clock, Users, Banknote, Dog } from 'lucide-react';
 import SectionCard from '../SectionCard';
+import { usePageTitle } from '../../hooks/usePageTitle';
+import { useToast } from '../ui/Toast';
 import { StaffDetailModal } from '../staff/StaffDetailModal';
 import TimesheetDetailModal from '../timesheet/TimesheetDetailModal';
 import PayrollView from './PayrollView';
@@ -14,7 +16,9 @@ import ManualEntryModal from '../timesheet/ManualEntryModal';
 import AssignDogsModal from '../staff/AssignDogsModal';
 
 const RosterView = () => {
-    const { shifts, requests, swaps, currentUser, staff, timeEntries, organization } = useOpsCenter();
+    const { shifts, requests, swaps, currentUser, staff, timeEntries, organization, updateRequestStatus, updateSwapStatus, updateShift } = useOpsCenter();
+    usePageTitle('Roster');
+    const { showToast } = useToast();
     const [dateRange, setDateRange] = useState('this_week');
 
     // Permission check
@@ -65,6 +69,8 @@ const RosterView = () => {
             setNavigatedUser(null);
         }
     }, [navigatedUser, setNavigatedUser]);
+
+    if (!currentUser) return null;
 
     const handleOpenStaffModal = (staffId: string | null) => {
         // Staff can only view themselves
@@ -177,13 +183,13 @@ const RosterView = () => {
     });
 
     return (
-        <div className="space-y-6 pb-48 lg:pb-24 min-h-[50vh] relative">
+        <div className="space-y-6 pb-32 lg:pb-8 min-h-[50vh] relative">
             {/* Toggle Header */}
             <div className="flex flex-col space-y-4 px-1">
                 <div className="flex justify-between items-center">
-                    <h2 className="text-3xl font-black text-slate-900">
+                    <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">
                         {canManageStaff ? 'Roster' : 'My Profile'}
-                    </h2>
+                    </h1>
                     {/* View Toggle - Roster / Timesheets / Requests */}
                     <div className="flex space-x-1 bg-slate-100 p-1 rounded-xl overflow-x-auto max-w-[calc(100vw-40px)] no-scrollbar">
                         {canManageStaff && (
@@ -209,7 +215,7 @@ const RosterView = () => {
                                 >
                                     Requests
                                     {(requests.length + swaps.length) > 0 && (
-                                        <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full">
+                                        <span className="bg-rose-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                                             {requests.length + swaps.length}
                                         </span>
                                     )}
@@ -331,7 +337,7 @@ const RosterView = () => {
                                         <div className="flex-1 min-w-0 pr-8">
                                             <h3 className="font-bold text-slate-900 truncate">{user.full_name}</h3>
                                             <p className="text-xs font-medium text-slate-400 uppercase">{user.role}</p>
-                                            <div className={`inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-md text-[10px] font-bold uppercase ${isClockedIn ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'
+                                            <div className={`inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-md text-xs font-bold uppercase ${isClockedIn ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'
                                                 }`}>
                                                 <Clock size={10} />
                                                 {isClockedIn ? 'Clocked In' : 'Off Duty'}
@@ -342,7 +348,7 @@ const RosterView = () => {
                                     <div className="flex justify-between items-center pt-3 border-t border-slate-50">
                                         <div>
                                             <div className="text-lg font-black text-slate-900">{TimeMath.formatDecimalHours(totalHours)}</div>
-                                            <div className="text-[9px] font-bold text-slate-400 uppercase">Total Worked</div>
+                                            <div className="text-xs font-bold text-slate-400 uppercase">Total Worked</div>
                                         </div>
                                         <button
                                             onClick={(e) => {
@@ -458,23 +464,23 @@ const RosterView = () => {
                                                 </div>
                                                 <div className="text-right">
                                                     <div className="text-sm font-black text-slate-900">{totalHours}h</div>
-                                                    <div className="text-[9px] font-bold text-slate-400 uppercase">This Week</div>
+                                                    <div className="text-xs font-bold text-slate-400 uppercase">This Week</div>
                                                 </div>
                                             </div>
 
                                             <div className="mt-3 flex items-center space-x-2">
                                                 {isClockedIn ? (
-                                                    <div className="flex items-center space-x-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-[10px] font-bold uppercase">
+                                                    <div className="flex items-center space-x-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-bold uppercase">
                                                         <Clock size={10} />
                                                         <span>Clocked In</span>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center space-x-1 px-2 py-1 bg-slate-50 text-slate-500 rounded-md text-[10px] font-bold uppercase">
+                                                    <div className="flex items-center space-x-1 px-2 py-1 bg-slate-50 text-slate-500 rounded-md text-xs font-bold uppercase">
                                                         <Users size={10} />
                                                         <span>Off Duty</span>
                                                     </div>
                                                 )}
-                                                <button className="text-[10px] font-bold text-indigo-600 px-2 py-1 hover:bg-indigo-50 rounded-md transition-colors">
+                                                <button className="text-xs font-bold text-indigo-600 px-2 py-1 hover:bg-indigo-50 rounded-md transition-colors">
                                                     View Schedule
                                                 </button>
                                             </div>
@@ -508,19 +514,23 @@ const RosterView = () => {
                                 <h3 className="font-bold text-slate-900 text-lg">Time Off Requests</h3>
                             </div>
                             <div className="space-y-4">
-                                {requests.map(req => (
+                                {requests.map(req => {
+                                    const reqStaff = staff.find(s => s.id === req.user_id);
+                                    const reqName = reqStaff?.full_name || 'Unknown Staff';
+                                    const reqInitials = reqName.split(' ').map(n => n[0]).join('').toUpperCase();
+                                    return (
                                     <div key={req.id} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl relative group hover:bg-white hover:shadow-md transition-all">
                                         <div className="flex justify-between items-start mb-3">
                                             <div className="flex items-center space-x-3">
                                                 <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-500">
-                                                    {req.user_id.substring(0, 2).toUpperCase()}
+                                                    {reqInitials}
                                                 </div>
                                                 <div>
-                                                    <p className="text-sm font-bold text-slate-900">User {req.user_id.substring(0, 4)}</p>
-                                                    <p className="text-[10px] font-bold text-slate-400 uppercase">{req.type} Leave</p>
+                                                    <p className="text-sm font-bold text-slate-900">{reqName}</p>
+                                                    <p className="text-xs font-bold text-slate-400 uppercase">{req.type} Leave</p>
                                                 </div>
                                             </div>
-                                            <span className={`px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide ${req.status === 'pending' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-500'
+                                            <span className={`px-2 py-1 rounded-lg text-xs font-bold uppercase tracking-wide ${req.status === 'pending' ? 'bg-amber-100 text-amber-700' : req.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
                                                 }`}>{req.status}</span>
                                         </div>
 
@@ -529,12 +539,15 @@ const RosterView = () => {
                                             <div className="mt-1 text-slate-400 italic">"{req.reason}"</div>
                                         </div>
 
+                                        {req.status === 'pending' && canManageStaff && (
                                         <div className="flex space-x-2">
-                                            <button className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">Decline</button>
-                                            <button className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-200 hover:scale-[1.02] transition-transform">Approve</button>
+                                            <button onClick={() => { updateRequestStatus(req.id, 'rejected'); showToast('Request declined.'); }} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">Decline</button>
+                                            <button onClick={() => { updateRequestStatus(req.id, 'approved'); showToast('Request approved!'); }} className="flex-1 py-2 bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-md shadow-emerald-200 hover:scale-[1.02] transition-transform">Approve</button>
                                         </div>
+                                        )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                                 {requests.length === 0 && (
                                     <div className="text-center py-10 text-slate-400">
                                         <p className="text-sm font-medium">No pending requests</p>
@@ -552,29 +565,47 @@ const RosterView = () => {
                                 <h3 className="font-bold text-slate-900 text-lg">Shift Swaps</h3>
                             </div>
                             <div className="space-y-4">
-                                {swaps.map(swap => (
+                                {swaps.map(swap => {
+                                    const requester = staff.find(s => s.id === swap.requester_id);
+                                    const recipient = swap.recipient_id ? staff.find(s => s.id === swap.recipient_id) : null;
+                                    const swapShift = shifts.find(s => s.id === swap.shift_id);
+                                    return (
                                     <div key={swap.id} className="p-4 bg-slate-50 border border-slate-100 rounded-2xl">
                                         <div className="flex justify-between items-center mb-3">
-                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">SWAP #{swap.id.substring(0, 4)}</span>
-                                            <span className="px-2 py-1 bg-slate-200 text-slate-600 rounded-md text-[10px] font-bold uppercase">{swap.status}</span>
+                                            <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">SWAP #{swap.id.substring(0, 4)}</span>
+                                            <span className={`px-2 py-1 rounded-md text-xs font-bold uppercase ${swap.status === 'pending' ? 'bg-amber-100 text-amber-700' : swap.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{swap.status}</span>
                                         </div>
+                                        {swapShift && (
+                                            <div className="text-xs text-slate-500 mb-2 font-medium">
+                                                Shift: {new Date(swapShift.start_time).toLocaleDateString()} {new Date(swapShift.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {new Date(swapShift.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                            </div>
+                                        )}
                                         <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100 mb-3">
                                             <div className="text-center">
-                                                <div className="text-xs font-bold text-slate-900">User {swap.requester_id}</div>
-                                                <div className="text-[10px] text-slate-400">Requester</div>
+                                                <div className="text-xs font-bold text-slate-900">{requester?.full_name || 'Unknown'}</div>
+                                                <div className="text-xs text-slate-400">Requester</div>
                                             </div>
                                             <ArrowRightLeft size={14} className="text-orange-400" />
                                             <div className="text-center">
-                                                <div className="text-xs font-bold text-slate-900">User {swap.recipient_id || 'Anyone'}</div>
-                                                <div className="text-[10px] text-slate-400">Recipient</div>
+                                                <div className="text-xs font-bold text-slate-900">{recipient?.full_name || 'Open'}</div>
+                                                <div className="text-xs text-slate-400">Recipient</div>
                                             </div>
                                         </div>
+                                        {swap.status === 'pending' && canManageStaff && (
                                         <div className="flex space-x-2">
-                                            <button className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">Reject</button>
-                                            <button className="flex-1 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold shadow-md shadow-orange-200 hover:scale-[1.02] transition-transform">Authorize Swap</button>
+                                            <button onClick={() => { updateSwapStatus(swap.id, 'rejected'); showToast('Swap rejected.'); }} className="flex-1 py-2 bg-white border border-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-50">Reject</button>
+                                            <button onClick={async () => {
+                                                await updateSwapStatus(swap.id, 'approved');
+                                                if (swapShift && recipient) {
+                                                    await updateShift(swapShift.id, { user_id: recipient.id });
+                                                }
+                                                showToast('Swap authorized!');
+                                            }} className="flex-1 py-2 bg-orange-500 text-white rounded-lg text-xs font-bold shadow-md shadow-orange-200 hover:scale-[1.02] transition-transform">Authorize Swap</button>
                                         </div>
+                                        )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                                 {swaps.length === 0 && (
                                     <div className="text-center py-10 text-slate-400">
                                         <p className="text-sm font-medium">No pending swaps</p>

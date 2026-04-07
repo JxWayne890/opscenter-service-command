@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { FinancialMonthData } from '../../types';
 import { AlertCircle, CheckCircle, DollarSign, TrendingUp, Users, Wallet, Zap } from 'lucide-react';
 import { FinancialService } from '../../services/financial';
+import { ErrorTracking } from '../../services/errorTracking';
 import { useOpsCenter } from '../../services/store';
+import { useToast } from '../ui/Toast';
 import { TimeMath } from '../../utils/timeMath';
 
 interface Props {
@@ -15,6 +17,7 @@ interface Props {
 
 const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue, autoPayroll }) => {
     const { organization } = useOpsCenter();
+    const { showToast } = useToast();
     const [isEditing, setIsEditing] = useState(false);
     const [saving, setSaving] = useState(false);
 
@@ -70,9 +73,11 @@ const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue,
                 })
             ]);
             setIsEditing(false);
+            showToast('Financial data saved successfully!');
             onUpdate();
         } catch (err) {
-            console.error("Error saving data", err);
+            ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Financial snapshot save' });
+            showToast('Failed to save financial data. Please try again.', 'error');
         } finally {
             setSaving(false);
         }
@@ -113,7 +118,7 @@ const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue,
                     <p className="text-sm text-slate-500">
                         {month.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                         {hasAutoRevenue && (
-                            <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded-full">
+                            <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full">
                                 <Zap size={10} /> Auto-calculated from {autoRevenue!.recordCount} service records
                             </span>
                         )}
@@ -184,7 +189,7 @@ const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue,
             )}
 
             {/* METRIC CARDS */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                 {/* Bank Balance */}
                 <div className="p-5 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl border border-slate-200/50">
                     <div className="flex items-center space-x-2 text-slate-500 mb-2">
@@ -206,7 +211,7 @@ const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue,
                     <div className="w-full bg-black/5 h-1.5 rounded-full mt-3 overflow-hidden">
                         <div className={`h-full rounded-full transition-all ${isBreakEven ? 'bg-emerald-500' : 'bg-amber-500'}`} style={{ width: `${Math.min(breakEvenProgress, 100)}%` }} />
                     </div>
-                    <p className="text-[10px] text-slate-500 mt-2 font-medium">Target: {TimeMath.formatCurrency(breakEvenTarget)}</p>
+                    <p className="text-xs text-slate-500 mt-2 font-medium">Target: {TimeMath.formatCurrency(breakEvenTarget)}</p>
                 </div>
 
                 {/* Total Revenue */}
@@ -217,10 +222,10 @@ const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue,
                     </div>
                     <p className="text-2xl font-black text-slate-900">{TimeMath.formatCurrency(totalRevenue)}</p>
                     <div className="flex flex-wrap gap-1.5 mt-2">
-                        {effectiveBoardingRev > 0 && <span className="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Board: {TimeMath.formatCurrency(effectiveBoardingRev)}</span>}
-                        {effectiveDaycareRev > 0 && <span className="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Day: {TimeMath.formatCurrency(effectiveDaycareRev)}</span>}
-                        {effectiveTrainingRev > 0 && <span className="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Train: {TimeMath.formatCurrency(effectiveTrainingRev)}</span>}
-                        {effectiveGroomingRev > 0 && <span className="text-[9px] bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Groom: {TimeMath.formatCurrency(effectiveGroomingRev)}</span>}
+                        {effectiveBoardingRev > 0 && <span className="text-xs bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Board: {TimeMath.formatCurrency(effectiveBoardingRev)}</span>}
+                        {effectiveDaycareRev > 0 && <span className="text-xs bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Day: {TimeMath.formatCurrency(effectiveDaycareRev)}</span>}
+                        {effectiveTrainingRev > 0 && <span className="text-xs bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Train: {TimeMath.formatCurrency(effectiveTrainingRev)}</span>}
+                        {effectiveGroomingRev > 0 && <span className="text-xs bg-white/60 px-1.5 py-0.5 rounded text-indigo-600 font-bold">Groom: {TimeMath.formatCurrency(effectiveGroomingRev)}</span>}
                     </div>
                 </div>
 
@@ -231,9 +236,9 @@ const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue,
                         <span className="text-xs font-bold uppercase tracking-wider">Payroll</span>
                     </div>
                     <p className={`text-2xl font-black ${getPayrollColor(payrollPercent)}`}>{payrollPercent.toFixed(0)}%</p>
-                    <p className="text-[10px] text-slate-400 font-medium mt-1">{TimeMath.formatCurrency(effectivePayroll)} • Goal: &lt;50%</p>
+                    <p className="text-xs text-slate-400 font-medium mt-1">{TimeMath.formatCurrency(effectivePayroll)} • Goal: &lt;50%</p>
                     {hasAutoPayroll && (
-                        <p className="text-[9px] text-emerald-600 font-bold mt-1">{autoPayroll!.totalHours.toFixed(0)}h tracked</p>
+                        <p className="text-xs text-emerald-600 font-bold mt-1">{autoPayroll!.totalHours.toFixed(0)}h tracked</p>
                     )}
                 </div>
 
@@ -246,7 +251,7 @@ const SnapshotOverview: React.FC<Props> = ({ data, month, onUpdate, autoRevenue,
                     <p className={`text-2xl font-black ${netIncome >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                         {TimeMath.formatCurrency(netIncome)}
                     </p>
-                    <p className="text-[10px] text-slate-400 font-medium mt-1">Rev - Overhead - Payroll</p>
+                    <p className="text-xs text-slate-400 font-medium mt-1">Rev - Overhead - Payroll</p>
                 </div>
             </div>
         </div>

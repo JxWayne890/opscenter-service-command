@@ -7,6 +7,9 @@ import { BillingService } from '../../services/billing';
 import { ServiceType } from '../../types';
 import OffboardingModal from '../staff/OffboardingModal';
 import { Organization } from '../../types';
+import { usePageTitle } from '../../hooks/usePageTitle';
+import { isManager } from '../../services/permissions';
+import { useToast } from '../ui/Toast';
 
 // ─── Service Pricing Card ─────────────────────
 const ServicePricingCard = () => {
@@ -106,7 +109,7 @@ const ServicePricingCard = () => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
                                     <span className="text-sm font-bold text-slate-900">{svc.name}</span>
-                                    <span className="text-[9px] font-bold text-slate-400 uppercase bg-slate-100 px-1.5 py-0.5 rounded">{svc.category}</span>
+                                    <span className="text-xs font-bold text-slate-400 uppercase bg-slate-100 px-1.5 py-0.5 rounded">{svc.category}</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
@@ -118,7 +121,7 @@ const ServicePricingCard = () => {
                                 ) : (
                                     <>
                                         <span className="text-sm font-black text-slate-900">${svc.rate.toFixed(2)}</span>
-                                        <span className="text-[10px] text-slate-400 font-medium">{unitLabels[svc.rate_unit]}</span>
+                                        <span className="text-xs text-slate-400 font-medium">{unitLabels[svc.rate_unit]}</span>
                                         <button onClick={() => { setEditingId(svc.id); setEditRate(svc.rate.toString()); }} className="p-1.5 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Settings size={14} /></button>
                                         <button onClick={() => handleDelete(svc.id)} className="p-1.5 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={14} /></button>
                                     </>
@@ -188,7 +191,7 @@ const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoo
     return (
         <div className={`relative p-5 rounded-2xl border ${colors.bg} ${colors.border} transition-all hover:shadow-lg`}>
             {comingSoon && (
-                <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-white text-[9px] font-bold rounded-full uppercase">
+                <div className="absolute top-3 right-3 px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full uppercase">
                     Coming Soon
                 </div>
             )}
@@ -205,7 +208,7 @@ const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoo
                 )}
             </div>
 
-            <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${colors.subtext}`}>{label}</p>
+            <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${colors.subtext}`}>{label}</p>
 
             {isEditing ? (
                 <div className="mb-2 flex gap-2">
@@ -241,6 +244,8 @@ const InviteCodeCard = ({ label, code, description, colorScheme, icon, comingSoo
 
 const SettingsView = () => {
     const { setInviteModalOpen, logout, currentUser, organization, updateOrganizationSettings } = useOpsCenter();
+    const { showToast } = useToast();
+    usePageTitle('Settings');
     const [inviteCode, setInviteCode] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
 
@@ -273,12 +278,13 @@ const SettingsView = () => {
 
 
     const handleUpdateClientCode = async (newCode: string) => {
-        const success = await SupabaseService.updateOrganization({ client_invite_code: newCode });
+        if (!organization?.id) return;
+        const success = await SupabaseService.updateOrganization(organization.id, { client_invite_code: newCode });
         if (success) {
             setClientInviteCode(newCode);
-            alert('Client invite code updated!');
+            showToast('Client invite code updated!');
         } else {
-            alert('Failed to update code.');
+            showToast('Failed to update code.', 'error');
         }
     };
 
@@ -299,19 +305,19 @@ const SettingsView = () => {
                 pay_period: payPeriod as any,
                 pay_period_start_day: Number(startDay)
             });
-            alert('Payroll settings updated successfully!');
+            showToast('Payroll settings updated!');
         } catch (error) {
-            alert('Failed to update payroll settings.');
+            showToast('Failed to update payroll settings.', 'error');
         } finally {
             setIsSaving(false);
         }
     };
 
-    const isAdmin = currentUser.role === 'owner' || currentUser.role === 'manager';
+    const isAdmin = isManager(currentUser);
 
     return (
         <div className="space-y-6 animate-in fade-in duration-700">
-            <h2 className="text-2xl font-bold text-slate-900">Settings</h2>
+            <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Settings</h1>
 
             {/* Invite Codes Section - Admin Only */}
             {isAdmin && (
@@ -435,7 +441,7 @@ const SettingsView = () => {
                                     <p className="text-xs text-slate-400 font-medium uppercase tracking-wider">Financial Controls</p>
                                 </div>
                             </div>
-                            <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full uppercase">
+                            <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-slate-400 bg-slate-50 px-3 py-1 rounded-full uppercase">
                                 <Shield size={10} />
                                 Admin Locked
                             </div>

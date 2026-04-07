@@ -84,7 +84,7 @@ const LiveRosterDetailModal: React.FC<LiveRosterDetailModalProps> = ({ isOpen, o
                         </div>
                         <button
                             onClick={onClose}
-                            className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                            className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
                         >
                             <X size={18} />
                         </button>
@@ -94,15 +94,15 @@ const LiveRosterDetailModal: React.FC<LiveRosterDetailModalProps> = ({ isOpen, o
                 {/* Summary Stats */}
                 <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 border-b border-slate-100">
                     <div className="text-center">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Worked</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Worked</p>
                         <p className="text-lg font-black text-slate-900">{TimeMath.formatDecimalHours(totalHours)}</p>
                     </div>
                     <div className="text-center border-x border-slate-200">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Breaks</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Breaks</p>
                         <p className="text-lg font-black text-amber-600">{TimeMath.formatMinutes(totalBreakMins)}</p>
                     </div>
                     <div className="text-center">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status</p>
                         <p className={`text-lg font-black ${isOnBreak ? 'text-amber-600' : activeEntry ? 'text-emerald-600' : 'text-slate-400'}`}>
                             {isOnBreak ? 'On Break' : activeEntry ? 'Active' : 'Off'}
                         </p>
@@ -111,7 +111,7 @@ const LiveRosterDetailModal: React.FC<LiveRosterDetailModalProps> = ({ isOpen, o
 
                 {/* Timeline */}
                 <div className="p-6 max-h-[300px] overflow-y-auto">
-                    <h3 className="text-[10px] font-black text-slate-300 uppercase tracking-widest mb-4">Activity Timeline</h3>
+                    <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest mb-4">Activity Timeline</h3>
 
                     {todaysEntries.length === 0 ? (
                         <div className="text-center py-8 text-slate-400">
@@ -209,7 +209,7 @@ const LiveRosterDetailModal: React.FC<LiveRosterDetailModalProps> = ({ isOpen, o
 
                                             {/* Duration */}
                                             <div className="flex items-center justify-between mt-2">
-                                                <span className="text-[10px] font-medium text-slate-400">Duration</span>
+                                                <span className="text-xs font-medium text-slate-400">Duration</span>
                                                 <span className="text-xs font-bold text-slate-700">
                                                     {TimeMath.formatDecimalHours(TimeMath.msToDecimalHours(calculateDurationMS(entry)))}
                                                 </span>

@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useOpsCenter } from '../../services/store';
 import { X, Search, Dog, CheckCircle2, Circle, AlertCircle } from 'lucide-react';
 import { Client, Pet } from '../../types';
+import { ErrorTracking } from '../../services/errorTracking';
 
 interface AssignDogsModalProps {
     isOpen: boolean;
@@ -51,8 +52,7 @@ const AssignDogsModal: React.FC<AssignDogsModalProps> = ({ isOpen, onClose, staf
             await bulkAssignPets(selectedPetIds, staffId);
             onClose();
         } catch (error) {
-            console.error(error);
-            alert('Failed to save assignments');
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'AssignDogs save' });
         } finally {
             setIsSaving(false);
         }
@@ -71,7 +71,7 @@ const AssignDogsModal: React.FC<AssignDogsModalProps> = ({ isOpen, onClose, staf
                             Assigning to <span className="font-bold text-indigo-600">{staffMember.full_name}</span>
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                    <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
                         <X size={20} />
                     </button>
                 </div>
@@ -119,7 +119,7 @@ const AssignDogsModal: React.FC<AssignDogsModalProps> = ({ isOpen, onClose, staf
                                 <div key={client.id} className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
                                     <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-100 flex justify-between items-center">
                                         <h3 className="font-bold text-slate-700 text-sm">{client.full_name}</h3>
-                                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{client.pets?.length || 0} Pets</span>
+                                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{client.pets?.length || 0} Pets</span>
                                     </div>
                                     <div className="divide-y divide-slate-50">
                                         {client.pets?.map(pet => {
@@ -142,7 +142,7 @@ const AssignDogsModal: React.FC<AssignDogsModalProps> = ({ isOpen, onClose, staf
                                                     </div>
 
                                                     {pet.medical_alerts && pet.medical_alerts.length > 0 && (
-                                                        <div className="flex items-center gap-1 text-rose-500 text-[10px] font-bold bg-rose-50 px-2 py-1 rounded-lg">
+                                                        <div className="flex items-center gap-1 text-rose-500 text-xs font-bold bg-rose-50 px-2 py-1 rounded-lg">
                                                             <AlertCircle size={12} />
                                                             <span className="hidden sm:inline">Medical Alert</span>
                                                         </div>

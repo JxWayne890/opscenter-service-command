@@ -5,12 +5,18 @@ import { ChevronLeft, ChevronRight, CheckCircle2, AlertCircle, FileText, Send, L
 import TimesheetDetailModal from '../timesheet/TimesheetDetailModal';
 import { AuditLog } from '../../services/auditLog';
 import { getOvertimeStatus } from '../../utils/overtime';
+import { useToast } from '../ui/Toast';
+import { usePageTitle } from '../../hooks/usePageTitle';
+import { ErrorTracking } from '../../services/errorTracking';
+import { isManager } from '../../services/permissions';
 
 const PayrollView = () => {
     const { staff, timeEntries, payStubs, fetchPayStubs, createPayStub, updatePayStubStatus, currentUser, organization } = useOpsCenter();
+    const { showToast } = useToast();
+    usePageTitle('Payroll');
 
     // STRICT GUARD: Managers/Owners Only
-    if (currentUser.role === 'staff') {
+    if (!isManager(currentUser)) {
         return (
             <div className="h-full flex flex-col items-center justify-center text-slate-400">
                 <Lock size={64} className="mb-4 opacity-20" />
@@ -77,10 +83,10 @@ const PayrollView = () => {
 
     // Data Fetching Effect - Store refresh
     useEffect(() => {
-        if (currentUser.role !== 'staff') {
+        if (isManager(currentUser)) {
             fetchPayStubs(periodStartString, periodEndString);
         }
-    }, [periodStartString, periodEndString, currentUser.role, fetchPayStubs]);
+    }, [periodStartString, periodEndString, currentUser, fetchPayStubs]);
 
     // Navigate Periods
     const changePeriod = (offset: number) => {
@@ -194,20 +200,16 @@ const PayrollView = () => {
                 gross_pay: pay
             };
 
-            console.log('[PayrollView] handleApprove Payload:', payload);
-
             if (stub) {
-                console.log('[PayrollView] Updating existing stub:', stub.id);
                 result = await updatePayStubStatus(stub.id, 'approved');
             } else {
-                console.log('[PayrollView] Creating new stub');
                 result = await createPayStub(payload);
             }
 
             if (!result.success) {
-                const msg = `Approval failed for ${userId}.\n\nDatabase Error: ${result.error || 'Unknown rejection'}`;
-                console.error('[PayrollView]', msg);
-                alert(msg);
+                const msg = `Approval failed for ${userId}. Database Error: ${result.error || 'Unknown rejection'}`;
+                ErrorTracking.captureMessage(msg);
+                showToast(msg, 'error');
             } else {
                 const employee = staff.find(s => s.id === userId);
                 AuditLog.log({
@@ -220,8 +222,8 @@ const PayrollView = () => {
                 });
             }
         } catch (error) {
-            console.error('Error in handleApprove:', error);
-            alert('Unexpected Error: ' + (error as Error).message);
+            ErrorTracking.captureException(error);
+            showToast('Unexpected Error: ' + (error as Error).message, 'error');
         } finally {
             setIsProcessing(null);
         }
@@ -232,10 +234,9 @@ const PayrollView = () => {
         try {
             const stub = getStubForUser(userId);
             if (stub) {
-                console.log('[PayrollView] Releasing stub:', stub.id);
                 const { success, error } = await updatePayStubStatus(stub.id, 'released');
                 if (!success) {
-                    alert(`Release failed.\n\nDatabase Error: ${error || 'Unknown rejection'}`);
+                    showToast(`Release failed. Database Error: ${error || 'Unknown rejection'}`, 'error');
                 } else {
                     const employee = staff.find(s => s.id === userId);
                     AuditLog.log({
@@ -249,8 +250,8 @@ const PayrollView = () => {
                 }
             }
         } catch (error) {
-            console.error('Error in handleRelease:', error);
-            alert('Unexpected Error: ' + (error as Error).message);
+            ErrorTracking.captureException(error);
+            showToast('Unexpected Error: ' + (error as Error).message, 'error');
         } finally {
             setIsProcessing(null);
         }
@@ -262,7 +263,7 @@ const PayrollView = () => {
             : payrollData.filter(d => d.status === 'approved');
 
         if (targets.length === 0) {
-            alert('No approved pay stubs to release.');
+            showToast('No approved pay stubs to release.', 'error');
             return;
         }
 
@@ -280,7 +281,7 @@ const PayrollView = () => {
             : payrollData.filter(d => d.status === 'draft');
 
         if (targets.length === 0) {
-            if (selectedIds.size > 0) alert('Selected items are already approved or released.');
+            if (selectedIds.size > 0) showToast('Selected items are already approved or released.', 'error');
             return;
         }
 
@@ -324,7 +325,7 @@ const PayrollView = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900">Payroll Manager</h1>
+                    <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Payroll Manager</h1>
                     <p className="text-slate-500">Review and release pay stubs for staff.</p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -399,9 +400,89 @@ const PayrollView = () => {
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex-none lg:flex-1 overflow-hidden flex flex-col min-h-[500px] lg:min-h-0">
-                <div className="overflow-auto flex-1">
+            {/* Mobile Card View */}
+            <div className="lg:hidden space-y-3 mb-6">
+                {payrollData.length === 0 && (
+                    <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
+                        <Users size={40} className="mx-auto text-slate-200 mb-4" />
+                        <p className="text-sm font-bold text-slate-400">No staff members found</p>
+                    </div>
+                )}
+                {payrollData.map(({ employee, totalHours, estPay, status }) => {
+                    const ot = getOvertimeStatus(employee.id, timeEntries);
+                    return (
+                        <div key={employee.id} className={`bg-white rounded-xl border border-slate-200 shadow-sm p-4 ${selectedIds.has(employee.id) ? 'ring-2 ring-indigo-500/30 bg-indigo-50/30' : ''}`}>
+                            <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="checkbox"
+                                        className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                        checked={selectedIds.has(employee.id)}
+                                        onChange={() => toggleSelect(employee.id)}
+                                    />
+                                    {employee.avatar_url ? (
+                                        <img src={employee.avatar_url} alt={employee.full_name} loading="lazy" className="w-10 h-10 rounded-full" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center font-bold text-sm">
+                                            {employee.full_name[0]}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="font-bold text-slate-900">{employee.full_name}</p>
+                                        <p className="text-xs text-slate-500 uppercase font-bold">{employee.role}</p>
+                                    </div>
+                                </div>
+                                {status === 'released' && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><CheckCircle2 size={12} /> Released</span>}
+                                {status === 'approved' && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700"><CheckCircle2 size={12} /> Approved</span>}
+                                {status === 'draft' && <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">Draft</span>}
+                            </div>
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                                <div className="bg-slate-50 rounded-lg p-3">
+                                    <p className="text-xs text-slate-500 font-bold uppercase">Hours</p>
+                                    <p className="text-lg font-bold text-slate-900 flex items-center gap-1.5">
+                                        {TimeMath.formatDecimalHours(totalHours)}
+                                        {ot.isOvertime && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs font-bold rounded-full">OT</span>}
+                                    </p>
+                                </div>
+                                <div className="bg-slate-50 rounded-lg p-3">
+                                    <p className="text-xs text-slate-500 font-bold uppercase">Gross Pay</p>
+                                    <p className="text-lg font-bold text-slate-900">{TimeMath.formatCurrency(estPay)}</p>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setSelectedUserForPreview(employee.id)}
+                                    className="flex-1 min-h-[44px] flex items-center justify-center gap-2 bg-slate-100 text-slate-600 font-bold text-xs rounded-lg hover:bg-slate-200 transition-colors"
+                                >
+                                    <FileText size={14} /> View Stub
+                                </button>
+                                {status === 'draft' && (
+                                    <button
+                                        disabled={isProcessing !== null}
+                                        onClick={() => handleApprove(employee.id, totalHours, estPay)}
+                                        className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 bg-white border border-slate-200 text-indigo-600 font-bold text-xs rounded-lg hover:bg-indigo-50 transition-colors ${isProcessing === employee.id ? 'opacity-50' : ''}`}
+                                    >
+                                        {isProcessing === employee.id ? '...' : <><CheckCircle2 size={14} /> Approve</>}
+                                    </button>
+                                )}
+                                {status === 'approved' && (
+                                    <button
+                                        disabled={isProcessing !== null}
+                                        onClick={() => handleRelease(employee.id)}
+                                        className={`flex-1 min-h-[44px] flex items-center justify-center gap-2 bg-indigo-600 text-white font-bold text-xs rounded-lg hover:bg-indigo-700 transition-colors ${isProcessing === employee.id ? 'opacity-50' : ''}`}
+                                    >
+                                        {isProcessing === employee.id ? '...' : <><Send size={14} /> Release</>}
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+
+            {/* Desktop Table */}
+            <div className="hidden lg:flex bg-white rounded-xl border border-slate-200 shadow-sm flex-1 overflow-hidden flex-col min-h-0">
+                <div className="overflow-x-auto flex-1">
                     <table className="w-full text-sm text-left min-w-[800px]">
                         <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 sticky top-0 z-10">
                             <tr>
@@ -455,12 +536,12 @@ const PayrollView = () => {
                                             <span className="font-bold text-slate-900">{employee.full_name}</span>
                                         </div>
                                     </td>
-                                    <td className="p-4 text-slate-500 uppercase text-[10px] font-bold">{employee.role}</td>
+                                    <td className="p-4 text-slate-500 uppercase text-xs font-bold">{employee.role}</td>
                                     <td className="p-4 text-right font-medium">
                                         <span className="inline-flex items-center gap-1.5">
                                             {TimeMath.formatDecimalHours(totalHours)}
-                                            {ot.isOvertime && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-[9px] font-bold rounded-full" title={`${ot.overtimeHours.toFixed(1)}h overtime`}>OT</span>}
-                                            {ot.isApproaching && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-[9px] font-bold rounded-full" title="Approaching 40h">!</span>}
+                                            {ot.isOvertime && <span className="px-1.5 py-0.5 bg-rose-100 text-rose-700 text-xs font-bold rounded-full" title={`${ot.overtimeHours.toFixed(1)}h overtime`}>OT</span>}
+                                            {ot.isApproaching && <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full" title="Approaching 40h">!</span>}
                                         </span>
                                     </td>
                                     <td className="p-4 text-right font-bold text-slate-900">{TimeMath.formatCurrency(estPay)}</td>

@@ -2,6 +2,7 @@ import React, { useMemo, useEffect } from 'react';
 import { X, Printer, Download, CheckCircle2, AlertTriangle, Clock, Calendar, DollarSign, ArrowRight, Lock, Coffee, Play, StopCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import { Shift, TimeEntry, Profile } from '../../types';
 import { useOpsCenter } from '../../services/store';
+import { useToast } from '../ui/Toast';
 import { TimeMath } from '../../utils/timeMath';
 
 interface TimesheetDetailModalProps {
@@ -13,6 +14,7 @@ interface TimesheetDetailModalProps {
 
 const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onClose, staffId, dateRange }) => {
     const { staff, shifts, timeEntries, approveShifts, payStubs, fetchPayStubs, currentUser } = useOpsCenter();
+    const { showToast } = useToast();
     const [expandedEntryIds, setExpandedEntryIds] = React.useState<Set<string>>(new Set());
 
     const toggleExpand = (id: string) => {
@@ -130,7 +132,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
     const handlePrint = () => {
         const printWindow = window.open('', '_blank', 'width=800,height=600');
         if (!printWindow) {
-            alert('Please allow popups to print the pay stub.');
+            showToast('Please allow popups to print the pay stub.', 'warning');
             return;
         }
 
@@ -451,7 +453,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                 <p className="text-slate-400 font-medium mt-1 flex items-center gap-2 text-sm lg:text-base">
                                     {staffMember.role.toUpperCase()} • {staffMember.email}
                                 </p>
-                                <div className="mt-4 flex items-center gap-3 text-sm font-medium bg-white/10 w-fit px-3 py-1.5 rounded-lg border border-白/10">
+                                <div className="mt-4 flex items-center gap-3 text-sm font-medium bg-white/10 w-fit px-3 py-1.5 rounded-lg border border-white/10">
                                     <Calendar size={14} className="text-indigo-400" />
                                     <span>Pay Period: {dateRange.start.toLocaleDateString()} - {dateRange.end.toLocaleDateString()}</span>
                                 </div>
@@ -460,7 +462,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
 
                         <button
                             onClick={onClose}
-                            className="p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                            className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
                         >
                             <X size={20} />
                         </button>
@@ -498,9 +500,9 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                     <DollarSign size={18} />
                                     {showFinancials ? (isReleased ? 'Current Pay Stub' : 'Estimated Pay') : 'Pay Processing'}
                                 </h3>
-                                {isReleased && <span className="text-[10px] font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full">FINALIZED</span>}
-                                {isApproved && !isReleased && <span className="text-[10px] font-bold bg-indigo-500 text-white px-2 py-0.5 rounded-full">APPROVED</span>}
-                                {!showFinancials && <span className="text-[10px] font-bold bg-slate-400 text-white px-2 py-0.5 rounded-full">DRAFT</span>}
+                                {isReleased && <span className="text-xs font-bold bg-emerald-500 text-white px-2 py-0.5 rounded-full">FINALIZED</span>}
+                                {isApproved && !isReleased && <span className="text-xs font-bold bg-indigo-500 text-white px-2 py-0.5 rounded-full">APPROVED</span>}
+                                {!showFinancials && <span className="text-xs font-bold bg-slate-400 text-white px-2 py-0.5 rounded-full">DRAFT</span>}
                             </div>
 
                             {!showFinancials ? (
@@ -553,7 +555,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                         <span className="text-slate-900 text-sm font-bold">Total Clocked</span>
                                         <span className="text-slate-900 font-black">{TimeMath.formatDecimalHours(stats.clockedHours)}</span>
                                     </div>
-                                    <p className="text-[10px] text-slate-400 italic leading-tight mt-2">
+                                    <p className="text-xs text-slate-400 italic leading-tight mt-2">
                                         Only approved hours are converted to pay. Pending hours are awaiting manager review.
                                     </p>
                                 </div>
@@ -625,9 +627,9 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-slate-900 font-bold">Punch Entry</span>
-                                                        {pending && <span className="text-[10px] font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">PENDING</span>}
-                                                        {isApproved && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 size={10} /> APPROVED</span>}
-                                                        {entry.status === 'active' && <span className="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
+                                                        {pending && <span className="text-xs font-bold bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full">PENDING</span>}
+                                                        {isApproved && <span className="text-xs font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full flex items-center gap-1"><CheckCircle2 size={10} /> APPROVED</span>}
+                                                        {entry.status === 'active' && <span className="text-xs font-bold bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
                                                     </div>
 
                                                     {/* Summary Line (Visible when collapsed OR expanded) */}
@@ -701,7 +703,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                                                             <p className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-1">End Break</p>
                                                                             <div className="flex items-center gap-2">
                                                                                 <p className="text-sm font-mono text-slate-600">{new Date(brk.end).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
-                                                                                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
+                                                                                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
                                                                                     {TimeMath.formatMinutes(brk.duration || 0)}
                                                                                 </span>
                                                                             </div>
@@ -737,7 +739,7 @@ const TimesheetDetailModal: React.FC<TimesheetDetailModalProps> = ({ isOpen, onC
                                                                     <div className="flex items-center gap-2">
                                                                         <p className="text-sm font-mono text-slate-600">{clockOutDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
                                                                         <div className="flex items-center gap-1 ml-2 pl-3 border-l border-slate-200">
-                                                                            <span className="text-[10px] font-bold text-slate-400 uppercase">Worked:</span>
+                                                                            <span className="text-xs font-bold text-slate-400 uppercase">Worked:</span>
                                                                             <span className="text-sm font-black text-indigo-600">
                                                                                 {TimeMath.formatDuration(TimeMath.calculateNetDurationMS(entry.clock_in, entry.clock_out!, entry.total_break_minutes))}
                                                                             </span>

@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import { Profile, Shift, StaffingRatio, Invitation, Organization, TimeEntry, PayStub, Message, Client, Pet, KnowledgeEntry } from '../types';
+import { Profile, Shift, StaffingRatio, Invitation, Organization, TimeEntry, PayStub, Message, Client, Pet, KnowledgeEntry, TimeOffRequest, ShiftSwap } from '../types';
 import { parsePhoneNumber } from '../utils/formatters';
 
 // Organization ID for the demo
@@ -829,6 +829,140 @@ export const SupabaseService = {
 
     if (error) {
       console.error('Error bulk assigning pets:', error);
+      return false;
+    }
+    return true;
+  },
+
+  // ─── Time Off Requests ────────────────────────────────────
+
+  async getTimeOffRequests(): Promise<TimeOffRequest[]> {
+    const { data, error } = await supabase
+      .from('time_off_requests')
+      .select('*')
+      .eq('organization_id', ORG_ID)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching time off requests:', error);
+      return [];
+    }
+    return data || [];
+  },
+
+  async createTimeOffRequest(request: TimeOffRequest): Promise<boolean> {
+    const { error } = await supabase
+      .from('time_off_requests')
+      .insert({
+        id: request.id,
+        organization_id: request.organization_id,
+        user_id: request.user_id,
+        start_date: request.start_date,
+        end_date: request.end_date,
+        type: request.type,
+        reason: request.reason || null,
+        status: request.status || 'pending',
+      });
+
+    if (error) {
+      console.error('Error creating time off request:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async updateTimeOffRequestStatus(
+    requestId: string,
+    status: 'approved' | 'rejected',
+    managerNotes?: string
+  ): Promise<boolean> {
+    const updates: Record<string, unknown> = { status };
+    if (managerNotes !== undefined) updates.manager_notes = managerNotes;
+
+    const { error } = await supabase
+      .from('time_off_requests')
+      .update(updates)
+      .eq('id', requestId);
+
+    if (error) {
+      console.error('Error updating time off request:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async deleteTimeOffRequest(requestId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('time_off_requests')
+      .delete()
+      .eq('id', requestId);
+
+    if (error) {
+      console.error('Error deleting time off request:', error);
+      return false;
+    }
+    return true;
+  },
+
+  // ─── Shift Swaps ──────────────────────────────────────────
+
+  async getShiftSwaps(): Promise<ShiftSwap[]> {
+    const { data, error } = await supabase
+      .from('shift_swaps')
+      .select('*')
+      .eq('organization_id', ORG_ID)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching shift swaps:', error);
+      return [];
+    }
+    return data || [];
+  },
+
+  async createShiftSwap(swap: ShiftSwap): Promise<boolean> {
+    const { error } = await supabase
+      .from('shift_swaps')
+      .insert({
+        id: swap.id,
+        organization_id: swap.organization_id,
+        requester_id: swap.requester_id,
+        shift_id: swap.shift_id,
+        recipient_id: swap.recipient_id || null,
+        status: swap.status || 'pending',
+      });
+
+    if (error) {
+      console.error('Error creating shift swap:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async updateShiftSwapStatus(
+    swapId: string,
+    status: 'approved' | 'rejected' | 'claimed'
+  ): Promise<boolean> {
+    const { error } = await supabase
+      .from('shift_swaps')
+      .update({ status })
+      .eq('id', swapId);
+
+    if (error) {
+      console.error('Error updating shift swap:', error);
+      return false;
+    }
+    return true;
+  },
+
+  async deleteShiftSwap(swapId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('shift_swaps')
+      .delete()
+      .eq('id', swapId);
+
+    if (error) {
+      console.error('Error deleting shift swap:', error);
       return false;
     }
     return true;

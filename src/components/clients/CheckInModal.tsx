@@ -94,7 +94,7 @@ const CheckInModal: React.FC<CheckInModalProps> = ({ isOpen, onClose, clientId, 
             <h2 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Check In</h2>
             <p className="text-sm font-medium text-slate-500">Record a service for billing</p>
           </div>
-          <button onClick={onClose} aria-label="Close check-in modal" className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+          <button onClick={onClose} aria-label="Close check-in modal" className="p-3 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
             <X size={24} />
           </button>
         </div>
@@ -149,7 +149,7 @@ const CheckInModal: React.FC<CheckInModalProps> = ({ isOpen, onClose, clientId, 
                     }`}
                   >
                     <span className="text-sm font-bold text-slate-900">{svc.name}</span>
-                    <span className="text-sm font-black text-indigo-600">${svc.rate.toFixed(2)}<span className="text-[10px] text-slate-400 font-medium">/{unitLabels[svc.rate_unit]?.replace('s', '')}</span></span>
+                    <span className="text-sm font-black text-indigo-600">${svc.rate.toFixed(2)}<span className="text-xs text-slate-400 font-medium">/{unitLabels[svc.rate_unit]?.replace('s', '')}</span></span>
                   </button>
                 ))}
               </div>

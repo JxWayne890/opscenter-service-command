@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, User, Users, Clock, Save, Trash2, Shield, DollarSign, Mail, Briefcase, FileText, Upload, CheckCircle } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
+import { useToast } from '../ui/Toast';
+import { ErrorTracking } from '../../services/errorTracking';
 import { Profile, ScheduleConfig } from '../../types';
 import { RestorationService } from '../../services/restoration';
 import AnalogTimePicker from '../ui/AnalogTimePicker';
@@ -16,6 +18,7 @@ interface StaffDetailModalProps {
 
 export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onClose, staffId }) => {
     const { staff, updateStaff, addStaff, currentUser, generateShiftsFromPattern, shifts, clearUserSchedule, bulkRestoreStaff } = useOpsCenter();
+    const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState<'profile' | 'schedule' | 'shifts'>('profile');
     const [isSaving, setIsSaving] = useState(false);
     const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -150,8 +153,16 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
 
     const handleBulkRestore = async () => {
         setIsSaving(true);
-        const { bulkRestoreStaff } = useOpsCenter(); // Note: This is inside the function, might need to move out
-        // Actually, I already have bulkRestoreStaff from useOpsCenter at the top
+        try {
+            await bulkRestoreStaff(bulkRecords);
+            showToast('Staff records restored successfully!');
+            setBulkRecords([]);
+        } catch (error) {
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)));
+            showToast('Failed to restore staff records.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     const handleSave = async () => {
@@ -194,11 +205,11 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
             // Wait for both to complete
             await Promise.all([saveOperationPromise, minDelayPromise]);
 
-            console.log("Save complete, closing modal");
             onClose();
+            showToast('Staff saved successfully!');
         } catch (error: any) {
-            console.error("Error saving staff:", error);
-            alert(`Error saving staff: ${error.message || error}`);
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'StaffDetailModal save' });
+            showToast(`Error saving staff: ${error.message || error}`, 'error');
         } finally {
             setIsSaving(false);
         }
@@ -227,7 +238,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                         <h2 className="text-2xl font-display font-bold text-slate-900 tracking-tight">Staff Details</h2>
                         <p className="text-sm font-medium text-slate-500">Manage profile and schedule settings</p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                    <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
                         <X size={24} />
                     </button>
                 </div>
@@ -293,7 +304,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg uppercase tracking-wide">
+                                                <div className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg uppercase tracking-wide">
                                                     {shift.role_type}
                                                 </div>
                                             </div>
@@ -502,7 +513,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                                     </div>
                                     <button
                                         onClick={() => setBulkRecords([])}
-                                        className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
+                                        className="p-3 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white"
                                     >
                                         <X size={20} />
                                     </button>
@@ -517,10 +528,10 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                                                 </div>
                                                 <div>
                                                     <div className="text-sm font-bold">{record.profile?.full_name || 'Unknown Staff'}</div>
-                                                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{record.profile?.role || 'Staff'}</div>
+                                                    <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">{record.profile?.role || 'Staff'}</div>
                                                 </div>
                                             </div>
-                                            <div className="text-[10px] font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg">
+                                            <div className="text-xs font-bold text-slate-400 bg-white/5 px-2 py-1 rounded-lg">
                                                 {record.shifts?.length || 0} Shifts • {record.timesheets?.length || 0} Entries
                                             </div>
                                         </div>
@@ -549,7 +560,7 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                                         </>
                                     )}
                                 </button>
-                                <p className="text-[10px] text-slate-500 font-bold text-center mt-4 uppercase tracking-[0.2em]">Full Historical Data Migration</p>
+                                <p className="text-xs text-slate-500 font-bold text-center mt-4 uppercase tracking-[0.2em]">Full Historical Data Migration</p>
                             </div>
                         </div>
                     )}
@@ -738,10 +749,10 @@ export const StaffDetailModal: React.FC<StaffDetailModalProps> = ({ isOpen, onCl
                             setScheduleConfig(emptyConfig);
 
                             setShowClearConfirm(false);
-                            console.log("Schedule cleared and pattern reset.");
+                            showToast('Schedule cleared');
                         } catch (err) {
-                            console.error("Error clearing schedule:", err);
-                            alert("Failed to clear schedule completely.");
+                            ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)), { context: 'Clear schedule' });
+                            showToast('Failed to clear schedule completely.', 'error');
                         }
                     }
                 }}

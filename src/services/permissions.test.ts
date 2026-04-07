@@ -5,7 +5,7 @@ import { Profile } from '../types';
 const makeProfile = (role: 'owner' | 'manager' | 'staff'): Profile => ({
   id: 'test-id',
   organization_id: 'org-id',
-  user_id: 'user-id',
+  email: 'test@example.com',
   full_name: 'Test User',
   role,
   status: 'active',

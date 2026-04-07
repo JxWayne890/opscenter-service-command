@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { MessageSquare, Users, User, ArrowLeft, Send, Search, MoreVertical, PlusCircle, Trash2, CheckSquare, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
+import { useToast } from '../ui/Toast';
+import { usePageTitle } from '../../hooks/usePageTitle';
+import { ErrorTracking } from '../../services/errorTracking';
+import ConfirmDialog from '../ui/ConfirmDialog';
 import { Message, Profile } from '../../types';
 
 // Mock Client Data removed, using global store
@@ -9,9 +13,13 @@ import { Message, Profile } from '../../types';
 const CommsHub = () => {
     const { staff, messages, currentUser, sendMessage, deleteMessage, deleteConversation, clients } = useOpsCenter();
 
+    const { showToast } = useToast();
+    usePageTitle('Communications');
+
     // State
     const [activeTab, setActiveTab] = useState<'team' | 'clients'>('team');
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+
     const [newMessageText, setNewMessageText] = useState('');
     const [mobileViewMode, setMobileViewMode] = useState<'list' | 'thread'>('list'); // For mobile responsiveness
 
@@ -26,6 +34,7 @@ const CommsHub = () => {
     // Image Upload State
     const [isSending, setIsSending] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [pendingFiles, setPendingFiles] = useState<File[]>([]); // New: Queue System
     const [lightboxImage, setLightboxImage] = useState<string | null>(null); // New: Lightbox
     const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -38,9 +47,7 @@ const CommsHub = () => {
         setSelectedConversations(newSet);
     };
 
-    const handleBulkDelete = async () => {
-        if (!confirm(`Delete ${selectedConversations.size} conversations?`)) return;
-
+    const executeBulkDelete = async () => {
         for (const id of Array.from(selectedConversations)) {
             await deleteConversation(id);
         }
@@ -49,6 +56,11 @@ const CommsHub = () => {
         if (selectedConversations.has(selectedThreadId || '')) {
             setSelectedThreadId(null);
         }
+        showToast('Conversations deleted');
+    };
+
+    const handleBulkDelete = () => {
+        setShowDeleteConfirm(true);
     };
 
 
@@ -83,6 +95,8 @@ const CommsHub = () => {
     React.useEffect(() => {
         scrollToBottom();
     }, [threadMessages, selectedThreadId]); // Trigger on messages or thread switch
+
+    if (!currentUser) return null;
 
     // Helper: Clean Preview Text
     const getPreviewText = (content: string) => {
@@ -152,11 +166,11 @@ const CommsHub = () => {
                         if (data.success) {
                             uploadedUrls.push(data.data.url);
                         } else {
-                            console.error('Upload failed:', data.error);
-                            alert(`Failed to upload ${file.name}: ${data.error?.message}`);
+                            ErrorTracking.captureMessage(`Upload failed: ${data.error?.message}`);
+                            showToast('Upload failed', 'error');
                         }
                     } catch (err) {
-                        console.error('Upload error:', err);
+                        ErrorTracking.captureException(err instanceof Error ? err : new Error(String(err)));
                     }
                 }
 
@@ -194,7 +208,7 @@ const CommsHub = () => {
             setNewMessageText('');
             setPendingFiles([]);
         } catch (error) {
-            console.error('Error sending messages:', error);
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)));
         } finally {
             setIsSending(false);
         }
@@ -239,6 +253,15 @@ const CommsHub = () => {
 
     return (
         <div className="h-[calc(100vh-140px)] animate-in fade-in duration-500 flex flex-col lg:flex-row gap-6">
+            <ConfirmDialog
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={executeBulkDelete}
+                title="Delete Conversations?"
+                message={`Delete ${selectedConversations.size} conversations? This cannot be undone.`}
+                confirmText="Delete"
+                variant="danger"
+            />
 
             {/* --- SIDEBAR (List View) --- */}
             <div className={`
@@ -256,7 +279,7 @@ const CommsHub = () => {
                                 <span className="font-bold text-slate-900">{selectedConversations.size} selected</span>
                             </div>
                         ) : (
-                            <h2 className="text-2xl font-black text-slate-900">Inbox</h2>
+                            <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Inbox</h1>
                         )}
 
                         <div className="flex items-center space-x-2">
@@ -358,7 +381,7 @@ const CommsHub = () => {
                                                 <h3 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>
                                                     {user.full_name}
                                                 </h3>
-                                                <span className={`text-[10px] font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{timeText}</span>
+                                                <span className={`text-xs font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{timeText}</span>
                                             </div>
                                             <p className={`text-xs truncate font-medium ${isSelected ? 'text-indigo-600' : 'text-slate-500 group-hover:text-slate-600'}`}>
                                                 {previewText}
@@ -399,7 +422,7 @@ const CommsHub = () => {
                                             <h3 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>
                                                 {client.full_name}
                                             </h3>
-                                            <span className={`text-[10px] font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{timeText}</span>
+                                            <span className={`text-xs font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{timeText}</span>
                                         </div>
                                         <p className={`text-xs truncate font-medium ${isSelected ? 'text-indigo-600' : 'text-slate-500 group-hover:text-slate-600'}`}>
                                             {previewText}
@@ -451,7 +474,7 @@ const CommsHub = () => {
                                         </h3>
                                         <div className="flex items-center space-x-1.5">
                                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
-                                            <span className="text-[10px] font-bold text-emerald-600">Online</span>
+                                            <span className="text-xs font-bold text-emerald-600">Online</span>
                                         </div>
                                     </div>
                                 </div>
@@ -484,7 +507,7 @@ const CommsHub = () => {
 
                             {/* Date Separator */}
                             <div className="flex justify-center my-4">
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest bg-slate-100/80 px-4 py-1.5 rounded-full backdrop-blur-sm border border-slate-200/50">Today</span>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100/80 px-4 py-1.5 rounded-full backdrop-blur-sm border border-slate-200/50">Today</span>
                             </div>
 
                             {threadMessages.map(msg => {
@@ -569,7 +592,7 @@ const CommsHub = () => {
                                                     <Trash2 size={14} />
                                                 </button>
                                             </div>
-                                            <span className="text-[9px] font-bold text-slate-300 mt-1.5 px-1">
+                                            <span className="text-xs font-bold text-slate-300 mt-1.5 px-1">
                                                 {new Date(msg.created_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                                             </span>
                                         </div>
@@ -595,7 +618,7 @@ const CommsHub = () => {
                                         >
                                             <X size={12} />
                                         </button>
-                                        <span className="text-[9px] text-slate-500 truncate block mt-1 w-full">{file.name}</span>
+                                        <span className="text-xs text-slate-500 truncate block mt-1 w-full">{file.name}</span>
                                     </div>
                                 ))}
                             </div>

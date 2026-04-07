@@ -19,7 +19,7 @@ const SidebarIcon = ({ icon: Icon, label, active, onClick }: { icon: any, label:
         </div>
 
         {/* Tooltip for desktop */}
-        <div className="absolute left-full abort ml-4 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 shadow-xl whitespace-nowrap z-50 hidden lg:block">
+        <div className="absolute left-full ml-4 px-3 py-1.5 bg-slate-900 text-white text-xs font-bold rounded-lg opacity-0 -translate-x-2 pointer-events-none group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200 shadow-xl whitespace-nowrap z-50 hidden lg:block">
             {label}
         </div>
 
@@ -35,7 +35,7 @@ const Sidebar = ({ activeView, setActiveView }: { activeView: ViewType, setActiv
     const canManage = isManager(currentUser);
 
     return (
-        <aside className="hidden lg:flex flex-col glass-panel w-24 rounded-[2.5rem] items-center py-8 space-y-8 sticky top-6 h-[calc(100vh-3rem)] z-40 transition-all hover:w-24">
+        <aside role="navigation" aria-label="Main navigation" className="hidden lg:flex flex-col glass-panel w-24 rounded-[2.5rem] items-center py-8 space-y-8 sticky top-6 h-[calc(100vh-3rem)] z-40 transition-all hover:w-24">
             {/* Brand Logo */}
             <div className="relative group cursor-pointer">
                 <div className="absolute inset-0 bg-brand-blue/40 blur-xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

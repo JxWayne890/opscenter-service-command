@@ -27,16 +27,16 @@ const ScenarioPlanner: React.FC<Props> = ({ data }) => {
     // 1. Payroll Impact
     //    - Rate increase * Total Hours (assuming hours stay same)
     //    - + New Staff Cost
-    const payrollDelta = (payRateIncrease * baseHours) + (addStaffCount * avgStaffCost);
-    const newPayroll = basePayroll + payrollDelta;
+    const payrollDelta = Math.round(((payRateIncrease * baseHours) + (addStaffCount * avgStaffCost)) * 100) / 100;
+    const newPayroll = Math.round((basePayroll + payrollDelta) * 100) / 100;
 
     // 2. Revenue Impact
-    const newRevenue = baseRevenue + revIncrease;
+    const newRevenue = Math.round((baseRevenue + revIncrease) * 100) / 100;
 
     // 3. New Net
-    const newRefExpenses = baseOverhead + newPayroll;
-    const newNet = newRevenue - newRefExpenses;
-    const baseNet = baseRevenue - (baseOverhead + basePayroll);
+    const newRefExpenses = Math.round((baseOverhead + newPayroll) * 100) / 100;
+    const newNet = Math.round((newRevenue - newRefExpenses) * 100) / 100;
+    const baseNet = Math.round((baseRevenue - (baseOverhead + basePayroll)) * 100) / 100;
 
     const newPayrollPercent = newRevenue > 0 ? (newPayroll / newRevenue) * 100 : 0;
     const basePayrollPercent = baseRevenue > 0 ? (basePayroll / baseRevenue) * 100 : 0;
@@ -73,7 +73,7 @@ const ScenarioPlanner: React.FC<Props> = ({ data }) => {
                             onChange={e => setPayRateIncrease(parseFloat(e.target.value))}
                             className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
                         />
-                        <p className="text-[10px] text-slate-400 mt-1">Impacts {baseHours} logged hours</p>
+                        <p className="text-xs text-slate-400 mt-1">Impacts {baseHours} logged hours</p>
                     </div>
 
                     {/* Add Staff */}
@@ -123,19 +123,19 @@ const ScenarioPlanner: React.FC<Props> = ({ data }) => {
                     <div className="relative z-10 grid grid-cols-2 gap-6">
 
                         <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">New Net Margin</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase mb-1">New Net Margin</p>
                             <p className={`text-2xl font-black ${newNet >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                 ${newNet.toLocaleString()}
                             </p>
-                            <p className="text-[10px] text-slate-500 mt-1">Previous: ${baseNet.toLocaleString()}</p>
+                            <p className="text-xs text-slate-500 mt-1">Previous: ${baseNet.toLocaleString()}</p>
                         </div>
 
                         <div>
-                            <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">New Payroll %</p>
+                            <p className="text-xs font-bold text-slate-400 uppercase mb-1">New Payroll %</p>
                             <p className={`text-2xl font-black ${newPayrollPercent > 60 ? 'text-rose-400' : newPayrollPercent < 50 ? 'text-emerald-400' : 'text-amber-400'}`}>
                                 {newPayrollPercent.toFixed(1)}%
                             </p>
-                            <p className="text-[10px] text-slate-500 mt-1">Previous: {basePayrollPercent.toFixed(1)}%</p>
+                            <p className="text-xs text-slate-500 mt-1">Previous: {basePayrollPercent.toFixed(1)}%</p>
                         </div>
 
                     </div>

@@ -153,7 +153,7 @@ const OpsPilotModal: React.FC<OpsPilotModalProps> = ({ isOpen, onClose, pendingP
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors"
+                        className="p-3 bg-white/5 hover:bg-white/10 rounded-full transition-colors"
                     >
                         <X size={20} />
                     </button>

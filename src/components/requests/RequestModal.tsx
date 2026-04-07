@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Calendar, FileText } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { useEscapeKey } from '../../hooks/useEscapeKey';
+import { useToast } from '../ui/Toast';
 import { TimeOffRequest } from '../../types';
 
 interface RequestModalProps {
@@ -11,6 +12,7 @@ interface RequestModalProps {
 
 const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose }) => {
     const { currentUser, submitTimeOff } = useOpsCenter();
+    const { showToast } = useToast();
     useEscapeKey(onClose, isOpen);
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
@@ -18,6 +20,8 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose }) => {
     const [reason, setReason] = useState('');
 
     const [error, setError] = useState<string | null>(null);
+
+    if (!currentUser) return null;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -51,7 +55,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose }) => {
 
         await submitTimeOff(req);
         onClose();
-        alert('Request Submitted!');
+        showToast('Request submitted successfully!');
     };
 
     if (!isOpen) return null;
@@ -61,7 +65,7 @@ const RequestModal: React.FC<RequestModalProps> = ({ isOpen, onClose }) => {
             <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 m-4 animate-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-slate-900">Request Time Off</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+                    <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                         <X size={20} />
                     </button>
                 </div>

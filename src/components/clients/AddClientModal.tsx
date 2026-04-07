@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { X, Upload, Plus, Trash2, Dog, User, Phone, Mail, MapPin, Camera, Loader2, Sparkles, Settings } from 'lucide-react';
 import { Client, Pet } from '../../types';
 import { formatPhoneNumber } from '../../utils/formatters';
+import { useToast } from '../ui/Toast';
+import { ErrorTracking } from '../../services/errorTracking';
 
 interface AddClientModalProps {
     isOpen: boolean;
@@ -15,6 +17,7 @@ interface PetFormState extends Partial<Pet> {
 }
 
 const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onSave, initialClient }) => {
+    const { showToast } = useToast();
     // Client State
     const [clientDisplay, setClientDisplay] = useState({
         full_name: '',
@@ -59,12 +62,12 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onSave
             if (data.success) {
                 handlePetChange(activePetIndex, 'avatar_url', data.data.url);
             } else {
-                console.error('Upload failed:', data.error);
-                alert('Photo upload failed. Please try again.');
+                ErrorTracking.captureMessage('Photo upload failed', { error: data.error });
+                showToast('Photo upload failed. Please try again.', 'error');
             }
         } catch (error) {
-            console.error('Error uploading to ImgBB:', error);
-            alert('Error uploading photo. Please check your connection.');
+            ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)), { context: 'ImgBB upload' });
+            showToast('Error uploading photo. Please check your connection.', 'error');
         } finally {
             setIsUploading(false);
         }
@@ -201,7 +204,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onSave
                             {isEditMode ? 'Update client information and pet records' : 'Create a new client profile and add their pets'}
                         </p>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-colors">
+                    <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-colors">
                         <X size={24} />
                     </button>
                 </div>
@@ -456,7 +459,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onSave
                                         {isUploading ? (
                                             <div className="flex flex-col items-center justify-center h-full text-brand-blue">
                                                 <Loader2 size={24} className="animate-spin mb-2" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wide">Uploading...</span>
+                                                <span className="text-xs font-bold uppercase tracking-wide">Uploading...</span>
                                             </div>
                                         ) : pets[activePetIndex].avatar_url ? (
                                             <img
@@ -467,7 +470,7 @@ const AddClientModal: React.FC<AddClientModalProps> = ({ isOpen, onClose, onSave
                                         ) : (
                                             <div className="flex flex-col items-center justify-center h-full text-slate-400 group-hover:text-brand-blue">
                                                 <Camera size={24} className="mb-2" />
-                                                <span className="text-[10px] font-bold uppercase tracking-wide">Add Photo</span>
+                                                <span className="text-xs font-bold uppercase tracking-wide">Add Photo</span>
                                             </div>
                                         )}
 

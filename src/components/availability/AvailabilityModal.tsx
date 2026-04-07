@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
+import { useToast } from '../ui/Toast';
 
 interface AvailabilityModalProps {
     isOpen: boolean;
@@ -10,6 +11,7 @@ interface AvailabilityModalProps {
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 const AvailabilityModal: React.FC<AvailabilityModalProps> = ({ isOpen, onClose }) => {
+    const { showToast } = useToast();
     // In a real app, we'd load existing availability here
     const [unavailableDays, setUnavailableDays] = useState<number[]>([]);
 
@@ -22,8 +24,8 @@ const AvailabilityModal: React.FC<AvailabilityModalProps> = ({ isOpen, onClose }
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         // In a real app, we'd save this to the store/DB
-        alert('Availability Updated!');
         onClose();
+        showToast('Availability updated!');
     };
 
     if (!isOpen) return null;
@@ -33,7 +35,7 @@ const AvailabilityModal: React.FC<AvailabilityModalProps> = ({ isOpen, onClose }
             <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6 m-4 animate-in zoom-in-95 duration-200">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-xl font-bold text-slate-900">Set Availability</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
+                    <button onClick={onClose} className="p-3 hover:bg-slate-100 rounded-full text-slate-500 transition-colors">
                         <X size={20} />
                     </button>
                 </div>
@@ -56,9 +58,9 @@ const AvailabilityModal: React.FC<AvailabilityModalProps> = ({ isOpen, onClose }
                                 >
                                     <span className="font-bold text-sm">{day}</span>
                                     {isUnavailable ? (
-                                        <span className="text-[10px] uppercase font-bold bg-rose-200 px-2 py-1 rounded-md">Unavailable</span>
+                                        <span className="text-xs uppercase font-bold bg-rose-200 px-2 py-1 rounded-md">Unavailable</span>
                                     ) : (
-                                        <span className="text-[10px] uppercase font-bold bg-slate-100 text-slate-400 px-2 py-1 rounded-md">Available</span>
+                                        <span className="text-xs uppercase font-bold bg-slate-100 text-slate-400 px-2 py-1 rounded-md">Available</span>
                                     )}
                                 </button>
                             );
