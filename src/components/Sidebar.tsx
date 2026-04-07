@@ -106,7 +106,7 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
             )}
 
             {/* Overflow Menu */}
-            <div className={`fixed bottom-24 right-4 z-[90] glass-panel-dark rounded-3xl p-2 flex flex-col space-y-1 lg:hidden transition-all duration-300 origin-bottom-right shadow-2xl ring-1 ring-white/10 w-48 ${isMenuOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-90 opacity-0 translate-y-8 pointer-events-none'}`}>
+            <div className={`fixed bottom-24 right-4 z-[90] glass-panel-dark rounded-3xl p-2 flex flex-col space-y-1 lg:hidden transition-all duration-300 origin-bottom-right shadow-2xl ring-1 ring-white/10 w-48 ${isMenuOpen && !isPilotOpen ? 'scale-100 opacity-100 translate-y-0' : 'scale-90 opacity-0 translate-y-8 pointer-events-none'}`}>
                 <div className="px-4 py-3 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-white/5 mb-1">
                     Menu
                 </div>
@@ -156,8 +156,8 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
                 </button>
             </div>
 
-            {/* Integrated Floating Dock */}
-            <div className="lg:hidden fixed bottom-6 left-4 right-4 z-[100] flex justify-center">
+            {/* Integrated Floating Dock — hidden when OpsPilot is open */}
+            <div className={`lg:hidden fixed bottom-6 left-4 right-4 z-[100] flex justify-center transition-all duration-300 ${isPilotOpen ? 'translate-y-32 opacity-0 pointer-events-none' : 'translate-y-0 opacity-100'}`}>
                 <nav className="relative flex items-center gap-1 p-1.5 h-[4.5rem] bg-[#0F172A] rounded-full shadow-2xl shadow-black/40 ring-1 ring-white/10">
 
                     {/* Left Group */}
