@@ -1,7 +1,7 @@
 import React from 'react';
 import { useOpsCenter } from '../services/store';
 import { isManager } from '../services/permissions';
-import { Home, Users, BookOpen, Send, Settings, LogOut, Zap, Calendar, Clock, Menu, X, Sparkles, ChevronRight, Dog, TrendingUp, BarChart3 } from 'lucide-react';
+import { Home, Users, BookOpen, Send, Settings, LogOut, Zap, Calendar, Clock, Menu, X, Sparkles, ChevronRight, Dog, TrendingUp, BarChart3, ClipboardCheck } from 'lucide-react';
 import { ViewType } from '../types';
 import OpsPilotModal from './OpsPilotModal';
 
@@ -54,8 +54,9 @@ const Sidebar = ({ activeView, setActiveView }: { activeView: ViewType, setActiv
                 <div className="w-8 h-px bg-slate-200/50 my-2" />
 
                 <SidebarIcon label="Clients & Pets" icon={Dog} active={activeView === 'clients'} onClick={() => setActiveView('clients')} />
-                <SidebarIcon label={canManage ? 'Staff Roster' : 'My Profile'} icon={Users} active={activeView === 'roster'} onClick={() => setActiveView('roster')} />
+                <SidebarIcon label={canManage ? 'Staff Roster' : 'My Timesheet'} icon={Users} active={activeView === 'roster'} onClick={() => setActiveView('roster')} />
                 <SidebarIcon label="Knowledge Hub" icon={BookOpen} active={activeView === 'knowledge'} onClick={() => setActiveView('knowledge')} />
+                <SidebarIcon label="Accountability" icon={ClipboardCheck} active={activeView === 'checklists'} onClick={() => setActiveView('checklists')} />
 
                 <SidebarIcon label="Communications" icon={Send} active={activeView === 'comms'} onClick={() => setActiveView('comms')} />
                 {canManage && (
@@ -113,7 +114,7 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
 
                 <button onClick={() => { setActiveView('roster'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
                     <Users size={20} />
-                    <span className="font-medium text-sm">{canManage ? 'Roster' : 'My Profile'}</span>
+                    <span className="font-medium text-sm">{canManage ? 'Roster' : 'My Timesheet'}</span>
                 </button>
 
                 <button onClick={() => { setActiveView('clients'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
@@ -124,6 +125,11 @@ export const MobileNav = ({ activeView, setActiveView }: { activeView: ViewType,
                 <button onClick={() => { setActiveView('knowledge'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
                     <BookOpen size={20} />
                     <span className="font-medium text-sm">Knowledge</span>
+                </button>
+
+                <button onClick={() => { setActiveView('checklists'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">
+                    <ClipboardCheck size={20} />
+                    <span className="font-medium text-sm">Checklists</span>
                 </button>
 
                 <button onClick={() => { setActiveView('comms'); setIsMenuOpen(false); }} className="flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-white/10 hover:text-white rounded-xl transition-colors">

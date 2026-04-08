@@ -115,11 +115,16 @@ const ShiftCompletionWidget: React.FC<ShiftCompletionWidgetProps> = ({ className
                     </div>
                     <div className="flex flex-col items-end">
                         <span className="text-4xl font-display font-bold tracking-tight text-slate-900 leading-none">
-                            {isAdmin && viewMode === 'today' ? `${teamAverage}%` : `${Math.round(myTodayPct)}%`}
+                            {isAdmin && viewMode === 'today'
+                                ? (teamCompletionData.length > 0 ? `${teamAverage}%` : '--')
+                                : (myTodayShift ? `${Math.round(myTodayPct)}%` : '--')
+                            }
                         </span>
-                        <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full mt-1">
-                            +2.4% vs last week
-                        </span>
+                        {teamCompletionData.length > 0 && (
+                            <span className="text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-0.5 rounded-full mt-1">
+                                +2.4% vs last week
+                            </span>
+                        )}
                     </div>
                 </div>
 

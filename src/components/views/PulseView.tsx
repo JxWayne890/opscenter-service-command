@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, ArrowUpRight, Clock, Sparkles, Send, BookOpen, PauseCircle, PlayCircle, Users, CheckCircle } from 'lucide-react';
+import { Activity, ArrowUpRight, Clock, Sparkles, Send, BookOpen, PauseCircle, PlayCircle, Users, CheckCircle, Shield, AlertTriangle, Dog } from 'lucide-react';
 import { ViewType } from '../../types';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
@@ -18,7 +18,7 @@ interface PilotMessage {
 }
 
 const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) => {
-    const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser, clients, payStubs, requests, swaps, organization } = useOpsCenter();
+    const { shifts, isClockedIn, activeTimeEntry, clockIn, clockOut, knowledgeBase, templates, staff, timeEntries, currentUser, clients, payStubs, requests, swaps, organization, ratios } = useOpsCenter();
     usePageTitle('Dashboard');
     const [currentTime, setCurrentTime] = React.useState(new Date());
     const [rosterFilter, setRosterFilter] = React.useState<'all' | 'manager' | 'staff'>('all');
@@ -176,6 +176,72 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                     </p>
                 </div>
             </div>
+
+            {/* Staffing Health Bar */}
+            {isManager(currentUser) && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    {/* Active Staff Count */}
+                    <div className="glass-panel p-4 rounded-2xl flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                            <Users size={20} className="text-emerald-600" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Staff On Duty</p>
+                            <p className="text-2xl font-black text-slate-900">{activeStaff.length}</p>
+                        </div>
+                    </div>
+
+                    {/* Today's Scheduled */}
+                    {(() => {
+                        const todayShifts = shifts.filter(s =>
+                            new Date(s.start_time).toDateString() === currentTime.toDateString() && !s.is_open && s.user_id
+                        );
+                        const openToday = shifts.filter(s =>
+                            new Date(s.start_time).toDateString() === currentTime.toDateString() && s.is_open
+                        );
+                        return (
+                            <div className="glass-panel p-4 rounded-2xl flex items-center gap-4">
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${openToday.length > 0 ? 'bg-amber-100' : 'bg-indigo-100'}`}>
+                                    <Shield size={20} className={openToday.length > 0 ? 'text-amber-600' : 'text-indigo-600'} />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Today's Shifts</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-2xl font-black text-slate-900">{todayShifts.length}</span>
+                                        {openToday.length > 0 && (
+                                            <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-bold rounded-full border border-amber-200">
+                                                {openToday.length} open
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+
+                    {/* Staffing Ratios / Dog Load */}
+                    <div className="glass-panel p-4 rounded-2xl flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                            <Dog size={20} className="text-purple-600" />
+                        </div>
+                        <div>
+                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                                {ratios.length > 0 ? 'Coverage Ratio' : 'Active Clients'}
+                            </p>
+                            {ratios.length > 0 ? (
+                                <div className="flex items-center gap-2">
+                                    <span className="text-2xl font-black text-slate-900">
+                                        {ratios[0].staff_count}:{ratios[0].dog_count}
+                                    </span>
+                                    <span className="text-xs text-slate-400">{ratios[0].zone_name}</span>
+                                </div>
+                            ) : (
+                                <p className="text-2xl font-black text-slate-900">{clients.filter(c => c.status === 'active').length}</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 

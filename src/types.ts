@@ -287,7 +287,52 @@ export interface AppNotification {
 }
 
 // --- View Types ---
-export type ViewType = 'pulse' | 'roster' | 'clients' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock' | 'financial' | 'analytics';
+export type ViewType = 'pulse' | 'roster' | 'clients' | 'knowledge' | 'comms' | 'settings' | 'schedule' | 'requests' | 'timeclock' | 'financial' | 'analytics' | 'checklists';
+
+// --- Staff Accountability / Checklists ---
+
+export interface ChecklistTemplate {
+  id: string;
+  organization_id: string;
+  name: string;
+  shift_type: 'morning' | 'afternoon' | 'evening' | 'overnight' | 'any';
+  items: ChecklistItemTemplate[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChecklistItemTemplate {
+  id: string;
+  label: string;
+  is_non_negotiable: boolean;
+  sort_order: number;
+}
+
+export interface ChecklistInstance {
+  id: string;
+  organization_id: string;
+  template_id: string;
+  template_name: string;
+  shift_type: string;
+  date: string;
+  assigned_to: string;
+  assigned_name: string;
+  items: ChecklistItemInstance[];
+  status: 'pending' | 'in_progress' | 'complete';
+  completed_at?: string;
+  created_at: string;
+}
+
+export interface ChecklistItemInstance {
+  id: string;
+  label: string;
+  is_non_negotiable: boolean;
+  completed: boolean;
+  completed_by?: string;
+  completed_by_name?: string;
+  completed_at?: string;
+}
 
 // --- Services & Billing Types ---
 

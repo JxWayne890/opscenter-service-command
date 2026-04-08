@@ -198,7 +198,7 @@ const PortalDashboard = () => {
                         <div className="mb-8 bg-white rounded-xl border border-gray-200 p-6 flex items-center justify-between shadow-sm">
                             <div>
                                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Account Balance</h3>
-                                <p className="text-3xl font-bold text-emerald-600 mt-1">$0.00</p>
+                                <p className="text-3xl font-bold text-emerald-600 mt-1">No Balance</p>
                             </div>
                             <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-100">All Paid</span>
                         </div>

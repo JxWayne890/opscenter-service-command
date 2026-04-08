@@ -134,8 +134,8 @@ const AnalyticsView = () => {
                             <Clock size={16} className="text-indigo-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Total Hours</span>
                         </div>
-                        <div className="text-2xl font-black text-slate-900">{TimeMath.formatDecimalHours(totalHoursThisWeek)}</div>
-                        <div className="text-xs text-slate-400 mt-1">{activeStaffIds.length} staff clocked in</div>
+                        <div className="text-2xl font-black text-slate-900">{activeStaffIds.length > 0 ? TimeMath.formatDecimalHours(totalHoursThisWeek) : '--'}</div>
+                        <div className="text-xs text-slate-400 mt-1">{activeStaffIds.length > 0 ? `${activeStaffIds.length} staff clocked in` : 'No activity this week'}</div>
                     </div>
                 </SectionCard>
 
@@ -145,8 +145,8 @@ const AnalyticsView = () => {
                             <DollarSign size={16} className="text-emerald-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Est. Payroll</span>
                         </div>
-                        <div className="text-2xl font-black text-slate-900">{TimeMath.formatCurrency(estimatedPayroll)}</div>
-                        <div className="text-xs text-slate-400 mt-1">Avg {TimeMath.formatCurrency(activeStaffIds.length > 0 ? estimatedPayroll / activeStaffIds.length : 0)}/person</div>
+                        <div className="text-2xl font-black text-slate-900">{activeStaffIds.length > 0 ? TimeMath.formatCurrency(estimatedPayroll) : '--'}</div>
+                        <div className="text-xs text-slate-400 mt-1">{activeStaffIds.length > 0 ? `Avg ${TimeMath.formatCurrency(estimatedPayroll / activeStaffIds.length)}/person` : 'No payroll data yet'}</div>
                     </div>
                 </SectionCard>
 
@@ -156,8 +156,8 @@ const AnalyticsView = () => {
                             <Users size={16} className="text-blue-500" />
                             <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Utilization</span>
                         </div>
-                        <div className="text-2xl font-black text-slate-900">{utilization.toFixed(0)}%</div>
-                        <div className="text-xs text-slate-400 mt-1">{activeStaffIds.length} of {activeStaff.length} active staff</div>
+                        <div className="text-2xl font-black text-slate-900">{activeStaff.length > 0 ? `${utilization.toFixed(0)}%` : '--'}</div>
+                        <div className="text-xs text-slate-400 mt-1">{activeStaff.length > 0 ? `${activeStaffIds.length} of ${activeStaff.length} active staff` : 'No staff data'}</div>
                     </div>
                 </SectionCard>
 
