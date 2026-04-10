@@ -7,6 +7,7 @@ import { usePageTitle } from '../../hooks/usePageTitle';
 import { isManager } from '../../services/permissions';
 import { ChecklistTemplate, ChecklistItemTemplate, ChecklistInstance, ChecklistItemInstance } from '../../types';
 import BaseModal from '../ui/BaseModal';
+import CustomSelect from '../ui/CustomSelect';
 
 // ==================== DEFAULT TEMPLATES ====================
 const DEFAULT_TEMPLATES: Omit<ChecklistTemplate, 'id' | 'organization_id' | 'created_at' | 'updated_at'>[] = [
@@ -102,39 +103,41 @@ const CreateTemplateModal = ({ isOpen, onClose, onSave, editTemplate }: {
     };
 
     return (
-        <BaseModal isOpen={isOpen} onClose={onClose}>
-            <div className="space-y-5 p-1">
-                <h2 className="text-xl font-bold text-slate-900">{editTemplate ? 'Edit Checklist Template' : 'Create Checklist Template'}</h2>
+        <BaseModal isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg">
+            <div className="p-6 space-y-6">
                 <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Template Name</label>
+                    <h2 className="text-xl font-display font-bold text-slate-900">{editTemplate ? 'Edit Checklist Template' : 'Create Checklist Template'}</h2>
+                    <p className="text-sm text-slate-400 mt-1">Define the tasks for a shift checklist</p>
+                </div>
+                <div>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Template Name</label>
                     <input
                         value={name}
                         onChange={e => setName(e.target.value)}
                         placeholder="e.g. Morning Opening"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 focus:bg-white transition-colors"
                     />
                 </div>
 
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Shift Type</label>
-                    <select
-                        value={shiftType}
-                        onChange={e => setShiftType(e.target.value as ChecklistTemplate['shift_type'])}
-                        className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                        <option value="morning">Morning</option>
-                        <option value="afternoon">Afternoon</option>
-                        <option value="evening">Evening</option>
-                        <option value="overnight">Overnight</option>
-                        <option value="any">Any Shift</option>
-                    </select>
-                </div>
+                <CustomSelect
+                    label="Shift Type"
+                    value={shiftType}
+                    onChange={v => setShiftType(v as ChecklistTemplate['shift_type'])}
+                    placeholder="Select shift type..."
+                    options={[
+                        { value: 'morning', label: 'Morning', description: 'Opening shift' },
+                        { value: 'afternoon', label: 'Afternoon', description: 'Midday shift' },
+                        { value: 'evening', label: 'Evening', description: 'Closing shift' },
+                        { value: 'overnight', label: 'Overnight', description: 'Night shift' },
+                        { value: 'any', label: 'Any Shift', description: 'Applies to all shifts' },
+                    ]}
+                />
 
                 <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Checklist Items</label>
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Checklist Items</label>
                     <div className="space-y-2 mb-3 max-h-60 overflow-y-auto">
                         {items.map((item, idx) => (
-                            <div key={item.id} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl">
+                            <div key={item.id} className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-100 rounded-2xl">
                                 <span className="text-xs font-bold text-slate-300 w-6">{idx + 1}</span>
                                 {item.is_non_negotiable && (
                                     <Shield size={14} className="text-amber-500 flex-shrink-0" />
@@ -156,27 +159,27 @@ const CreateTemplateModal = ({ isOpen, onClose, onSave, editTemplate }: {
                             onChange={e => setNewItemLabel(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && addItem()}
                             placeholder="Add checklist item..."
-                            className="flex-1 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            className="flex-1 bg-slate-50 border border-slate-200 rounded-2xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 focus:bg-white transition-colors"
                         />
-                        <label className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl cursor-pointer hover:bg-amber-100 transition-colors">
+                        <label className="flex items-center gap-1.5 px-3 py-2 bg-amber-50 border border-amber-200 rounded-2xl cursor-pointer hover:bg-amber-100 transition-colors">
                             <input type="checkbox" checked={newItemNonNeg} onChange={e => setNewItemNonNeg(e.target.checked)} className="rounded" />
                             <Shield size={14} className="text-amber-600" />
                             <span className="text-xs font-bold text-amber-700 hidden sm:inline">Required</span>
                         </label>
-                        <button onClick={addItem} className="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-800 transition-colors">
+                        <button onClick={addItem} className="px-4 py-2 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-slate-800 active:scale-[0.98] transition-all">
                             Add
                         </button>
                     </div>
                 </div>
 
                 <div className="flex gap-3 pt-2">
-                    <button onClick={onClose} className="flex-1 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors text-sm">
+                    <button onClick={onClose} className="flex-1 py-3.5 border-2 border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all text-sm">
                         Cancel
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={!name.trim() || items.length === 0}
-                        className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all text-sm"
+                        className="flex-1 py-3.5 bg-slate-900 text-white font-bold rounded-2xl hover:bg-slate-800 shadow-lg shadow-slate-900/20 hover:shadow-xl disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed active:scale-[0.98] transition-all text-sm"
                     >
                         {editTemplate ? 'Update Template' : 'Create Template'}
                     </button>
@@ -208,33 +211,39 @@ const AssignChecklistModal = ({ isOpen, onClose, templates, staff: staffList, on
 
     return (
         <BaseModal isOpen={isOpen} onClose={onClose}>
-            <div className="space-y-5 p-1">
-                <h2 className="text-xl font-bold text-slate-900">Assign Checklist</h2>
+            <div className="p-6 space-y-6">
                 <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Checklist Template</label>
-                    <select value={templateId} onChange={e => setTemplateId(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
-                        <option value="">Select template...</option>
-                        {templates.filter(t => t.is_active).map(t => (
-                            <option key={t.id} value={t.id}>{t.name} ({t.shift_type})</option>
-                        ))}
-                    </select>
+                    <h2 className="text-xl font-display font-bold text-slate-900">Assign Checklist</h2>
+                    <p className="text-sm text-slate-400 mt-1">Assign a daily checklist to a team member</p>
                 </div>
+                <CustomSelect
+                    label="Checklist Template"
+                    value={templateId}
+                    onChange={setTemplateId}
+                    placeholder="Select template..."
+                    options={templates.filter(t => t.is_active).map(t => ({
+                        value: t.id,
+                        label: t.name,
+                        description: `${t.shift_type} shift • ${t.items.length} items`,
+                    }))}
+                />
+                <CustomSelect
+                    label="Assign To"
+                    value={assignedTo}
+                    onChange={setAssignedTo}
+                    placeholder="Select staff member..."
+                    options={staffList.map(s => ({
+                        value: s.id,
+                        label: s.full_name,
+                    }))}
+                />
                 <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Assign To</label>
-                    <select value={assignedTo} onChange={e => setAssignedTo(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
-                        <option value="">Select staff member...</option>
-                        {staffList.map(s => (
-                            <option key={s.id} value={s.id}>{s.full_name}</option>
-                        ))}
-                    </select>
-                </div>
-                <div>
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Date</label>
-                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20" />
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Date</label>
+                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3.5 text-sm font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-300 focus:bg-white transition-colors" />
                 </div>
                 <div className="flex gap-3 pt-2">
-                    <button onClick={onClose} className="flex-1 py-3 border border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors text-sm">Cancel</button>
-                    <button onClick={handleAssign} disabled={!templateId || !assignedTo} className="flex-1 py-3 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-800 disabled:opacity-40 transition-all text-sm">Assign</button>
+                    <button onClick={onClose} className="flex-1 py-3.5 border-2 border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all text-sm">Cancel</button>
+                    <button onClick={handleAssign} disabled={!templateId || !assignedTo} className="flex-1 py-3.5 bg-emerald-600 text-white font-bold rounded-2xl hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/30 disabled:opacity-30 disabled:shadow-none disabled:cursor-not-allowed active:scale-[0.98] transition-all text-sm">Assign</button>
                 </div>
             </div>
         </BaseModal>

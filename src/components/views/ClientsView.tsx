@@ -1,19 +1,21 @@
-import React, { useState, useMemo } from 'react';
-import { Search, Filter, Plus, Dog, Phone, Mail, MapPin, MoreVertical, ChevronRight, Star, AlertCircle, Heart, Trash2, CheckSquare, Square, X, Users, LogIn } from 'lucide-react';
+import React, { useState, useMemo, useCallback } from 'react';
+import { Search, Filter, Plus, Dog, Phone, Mail, MapPin, MoreVertical, ChevronRight, Star, AlertCircle, Heart, Trash2, CheckSquare, Square, X, Users, LogIn, ShieldCheck, UtensilsCrossed, Pill, LogOut as LogOutIcon } from 'lucide-react';
 import { Client, Pet } from '../../types';
 import AddClientModal from '../clients/AddClientModal';
 import CheckInModal from '../clients/CheckInModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { useOpsCenter } from '../../services/store';
+import { isManager } from '../../services/permissions';
 import { formatPhoneNumber } from '../../utils/formatters';
 import { usePageTitle } from '../../hooks/usePageTitle';
+import SectionCard from '../SectionCard';
 
 // Mock Data Generation
 
 
 const ClientsView: React.FC = () => {
     usePageTitle('Clients');
-    const { clients, addClient, deleteClient, deleteClientsBulk, assignments, staff, assignPet, unassignPet } = useOpsCenter();
+    const { clients, addClient, deleteClient, deleteClientsBulk, assignments, staff, assignPet, unassignPet, currentUser } = useOpsCenter();
     const [searchQuery, setSearchQuery] = useState('');
     const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'inactive'>('all');
     const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -84,6 +86,59 @@ const ClientsView: React.FC = () => {
         }
     };
 
+    // Check-in state — persisted in localStorage for the day
+    const todayKey = new Date().toISOString().split('T')[0];
+    const [checkedInPets, setCheckedInPets] = useState<Set<string>>(() => {
+        try {
+            const stored = localStorage.getItem(`checkedIn_${todayKey}`);
+            return stored ? new Set(JSON.parse(stored)) : new Set();
+        } catch { return new Set(); }
+    });
+
+    const toggleCheckIn = useCallback((petId: string) => {
+        setCheckedInPets(prev => {
+            const next = new Set(prev);
+            if (next.has(petId)) next.delete(petId); else next.add(petId);
+            localStorage.setItem(`checkedIn_${todayKey}`, JSON.stringify([...next]));
+            return next;
+        });
+    }, [todayKey]);
+
+    // Today's Dogs filter
+    const [dogFilter, setDogFilter] = useState<'all' | 'in_facility' | 'medical' | 'behavior'>('all');
+
+    // All pets from active clients with owner info
+    const allTodayDogs = useMemo(() => {
+        const results: { pet: Pet; ownerName: string; assignedStaff?: string }[] = [];
+        for (const client of clients) {
+            if (client.status !== 'active') continue;
+            for (const pet of client.pets || []) {
+                if (pet.status !== 'active') continue;
+                const assignedStaffId = assignments.find(a => a.pet_id === pet.id)?.staff_id;
+                const assignedStaff = assignedStaffId ? staff.find(s => s.id === assignedStaffId)?.full_name : undefined;
+                results.push({ pet, ownerName: client.full_name, assignedStaff });
+            }
+        }
+        // Sort: medical alerts first
+        results.sort((a, b) => {
+            const aHas = (a.pet.medical_alerts?.length || 0) > 0 ? 0 : 1;
+            const bHas = (b.pet.medical_alerts?.length || 0) > 0 ? 0 : 1;
+            return aHas - bHas;
+        });
+        return results;
+    }, [clients, assignments, staff]);
+
+    const filteredDogs = useMemo(() => {
+        switch (dogFilter) {
+            case 'in_facility': return allTodayDogs.filter(d => checkedInPets.has(d.pet.id));
+            case 'medical': return allTodayDogs.filter(d => d.pet.medical_alerts && d.pet.medical_alerts.length > 0);
+            case 'behavior': return allTodayDogs.filter(d => d.pet.behavior_tags && d.pet.behavior_tags.length > 0);
+            default: return allTodayDogs;
+        }
+    }, [allTodayDogs, dogFilter, checkedInPets]);
+
+    const canManage = isManager(currentUser);
+
     const filteredClients = useMemo(() => {
         return clients.filter(client => {
             const matchesSearch =
@@ -106,7 +161,7 @@ const ClientsView: React.FC = () => {
                         <Dog className="text-brand-blue" size={32} />
                         Clients & Pets
                     </h1>
-                    <p className="text-slate-500 font-medium mt-1">Directory of {clients.length} owners and their furry companions</p>
+                    <p className="text-sm text-slate-500 font-medium mt-1">Directory of {clients.length} owners and their furry companions</p>
                 </div>
 
                 <div className="flex w-full lg:w-auto gap-3">
@@ -153,6 +208,119 @@ const ClientsView: React.FC = () => {
                     </button>
                 </div>
             </header>
+
+            {/* Today's Dogs Section */}
+            <SectionCard className="!p-5">
+                <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                        <Dog size={16} className="text-slate-400" />
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Today's Dogs</h3>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200">
+                            {checkedInPets.size} in facility
+                        </span>
+                        <span className="text-xs font-bold text-slate-500">{allTodayDogs.length} total</span>
+                    </div>
+                </div>
+
+                {/* Quick Filter Bar */}
+                <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-4">
+                    {([
+                        { key: 'all', label: 'All' },
+                        { key: 'in_facility', label: 'In Facility' },
+                        { key: 'medical', label: 'Medical Alerts' },
+                        { key: 'behavior', label: 'Behavior Flags' },
+                    ] as const).map(f => (
+                        <button
+                            key={f.key}
+                            onClick={() => setDogFilter(f.key)}
+                            className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${dogFilter === f.key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            {f.label}
+                        </button>
+                    ))}
+                </div>
+
+                {filteredDogs.length === 0 ? (
+                    <div className="flex items-center gap-3 py-4">
+                        <ShieldCheck size={16} className="text-emerald-500" />
+                        <p className="text-sm font-medium text-slate-500">
+                            {dogFilter === 'all' ? 'No active pets found.' : dogFilter === 'medical' ? 'All clear — no medical alerts.' : dogFilter === 'behavior' ? 'No behavior flags.' : 'No dogs checked in.'}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 max-h-[400px] overflow-y-auto custom-scrollbar pr-1">
+                        {filteredDogs.map(({ pet, ownerName, assignedStaff }) => {
+                            const isIn = checkedInPets.has(pet.id);
+                            return (
+                                <div key={pet.id} className={`flex gap-3 p-3 rounded-2xl border transition-all ${isIn ? 'bg-emerald-50/50 border-emerald-200' : 'bg-slate-50 border-slate-100'}`}>
+                                    {pet.avatar_url ? (
+                                        <img src={pet.avatar_url} alt={pet.name} loading="lazy" className="w-12 h-12 rounded-xl object-cover shadow-sm flex-shrink-0" />
+                                    ) : (
+                                        <div className="w-12 h-12 rounded-xl bg-slate-200 flex items-center justify-center flex-shrink-0">
+                                            <Dog size={20} className="text-slate-400" />
+                                        </div>
+                                    )}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center justify-between gap-1">
+                                            <div className="flex items-baseline gap-2 min-w-0">
+                                                <h4 className="font-bold text-slate-900 text-sm truncate">{pet.name}</h4>
+                                                <span className="text-xs text-slate-400 truncate">{pet.breed}</span>
+                                            </div>
+                                            <button
+                                                onClick={() => toggleCheckIn(pet.id)}
+                                                className={`flex-shrink-0 text-[10px] font-bold uppercase px-2 py-1 rounded-lg border transition-all ${isIn
+                                                    ? 'bg-emerald-100 text-emerald-700 border-emerald-300 hover:bg-rose-100 hover:text-rose-700 hover:border-rose-300'
+                                                    : 'bg-white text-slate-500 border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300'
+                                                }`}
+                                            >
+                                                {isIn ? 'Check Out' : 'Check In'}
+                                            </button>
+                                        </div>
+                                        <p className="text-xs text-slate-500 font-medium truncate">
+                                            Owner: {ownerName}
+                                            {assignedStaff && <span className="text-indigo-500"> · Staff: {assignedStaff}</span>}
+                                        </p>
+                                        {isIn && <span className="text-[10px] font-bold text-emerald-600 uppercase">In Facility</span>}
+
+                                        {/* Flags */}
+                                        <div className="flex flex-wrap gap-1 mt-1.5">
+                                            {pet.medical_alerts?.map(tag => (
+                                                <span key={`med-${tag}`} className="inline-flex items-center gap-0.5 text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                                                    <AlertCircle size={8} /> {tag}
+                                                </span>
+                                            ))}
+                                            {pet.behavior_tags?.map(tag => (
+                                                <span key={`beh-${tag}`} className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                                    <Star size={8} /> {tag}
+                                                </span>
+                                            ))}
+                                            {pet.dietary_restrictions?.map(tag => (
+                                                <span key={`diet-${tag}`} className="inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                                                    <UtensilsCrossed size={8} /> {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+
+                                        {/* Feeding & Medication */}
+                                        {pet.feeding_instructions && (
+                                            <p className="text-[10px] text-slate-400 mt-1 truncate" title={pet.feeding_instructions}>
+                                                <UtensilsCrossed size={8} className="inline mr-0.5" /> {pet.feeding_instructions}
+                                            </p>
+                                        )}
+                                        {pet.medication_instructions && (
+                                            <p className="text-[10px] text-purple-500 mt-0.5 truncate" title={pet.medication_instructions}>
+                                                <Pill size={8} className="inline mr-0.5" /> {pet.medication_instructions}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </SectionCard>
 
             {/* Bulk Action Bar */}
             {isSelectionMode && selectedIds.length > 0 && (

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Users, Filter, Save, Trash2, RefreshCw, Briefcase, Clock, Search, MoreHorizontal } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon, Users, Filter, Save, Trash2, RefreshCw, Briefcase, Clock, Search, MoreHorizontal, AlertTriangle } from 'lucide-react';
 import { useOpsCenter } from '../../services/store';
 import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
@@ -15,8 +15,9 @@ import TemplatePanel from '../scheduling/TemplatePanel';
 import CoverageBar from '../scheduling/CoverageBar';
 import ShiftExchangeBoard from '../scheduling/ShiftExchangeBoard';
 import BulkShiftActions from '../scheduling/BulkShiftActions';
+import CopilotPanel from '../scheduling/CopilotPanel';
 import { useUndoStack } from '../../hooks/useUndoStack';
-import { ArrowRightLeft, Undo2 } from 'lucide-react';
+import { ArrowRightLeft, Undo2, Sparkles } from 'lucide-react';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -63,6 +64,9 @@ const ScheduleView = () => {
 
     // Shift Exchange Board
     const [isExchangeOpen, setIsExchangeOpen] = useState(false);
+
+    // Copilot Panel
+    const [isCopilotOpen, setIsCopilotOpen] = useState(false);
 
     // Multi-select State
     const [selectedShiftIds, setSelectedShiftIds] = useState<Set<string>>(new Set());
@@ -372,9 +376,18 @@ const ScheduleView = () => {
                                 <ChevronLeft size={20} />
                             </button>
                             <div className="px-2 flex flex-col items-center justify-center min-w-[80px]">
-                                <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
-                                    {selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}
-                                </span>
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-indigo-500 uppercase tracking-wider">
+                                        {selectedDate.toLocaleDateString('en-US', { weekday: 'short' })}
+                                    </span>
+                                    {(() => {
+                                        const dayShifts = getShiftsForDate(selectedDate);
+                                        const openCount = dayShifts.filter(s => s.is_open).length;
+                                        if (dayShifts.length === 0) return null;
+                                        const dotColor = openCount === 0 ? 'bg-emerald-500' : openCount <= 2 ? 'bg-amber-500' : 'bg-rose-500';
+                                        return <span className={`w-2 h-2 rounded-full ${dotColor}`} />;
+                                    })()}
+                                </div>
                                 <span className="text-lg font-display font-bold text-slate-900 leading-none">
                                     {selectedDate.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
                                 </span>
@@ -607,6 +620,17 @@ const ScheduleView = () => {
                                 <ArrowRightLeft size={18} />
                             </button>
 
+                            {/* Copilot Toggle */}
+                            {canManageSchedule && (
+                                <button
+                                    onClick={() => setIsCopilotOpen(!isCopilotOpen)}
+                                    className={`flex items-center justify-center w-10 h-10 border rounded-xl transition-all ${isCopilotOpen ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-slate-200 text-slate-400 hover:text-indigo-500 hover:border-indigo-200'}`}
+                                    title="Scheduling Copilot"
+                                >
+                                    <Sparkles size={18} />
+                                </button>
+                            )}
+
                             {/* Undo */}
                             {canUndo && (
                                 <button
@@ -641,6 +665,40 @@ const ScheduleView = () => {
                             )}
                         </div>
                     </div>
+
+                    {/* Problem Days Summary (Managers Only) */}
+                    {canManageSchedule && (() => {
+                        const problemDays: { date: Date; openCount: number }[] = [];
+                        const scanStart = new Date(); scanStart.setHours(0, 0, 0, 0);
+                        for (let d = 0; d < 14; d++) {
+                            const checkDate = new Date(scanStart);
+                            checkDate.setDate(checkDate.getDate() + d);
+                            const dayShifts = getShiftsForDate(checkDate);
+                            const openCount = dayShifts.filter(s => s.is_open).length;
+                            if (openCount > 0) problemDays.push({ date: checkDate, openCount });
+                        }
+                        if (problemDays.length === 0) return null;
+                        return (
+                            <div className="flex items-center gap-2 flex-wrap shrink-0">
+                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-400 uppercase tracking-widest mr-1">
+                                    <AlertTriangle size={14} />
+                                    <span>Problem Days</span>
+                                </div>
+                                {problemDays.map(({ date, openCount }) => (
+                                    <button
+                                        key={date.toISOString()}
+                                        onClick={() => { setCurrentWeekStart(new Date(date)); setViewMode('week'); }}
+                                        className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all hover:scale-105 ${openCount >= 3
+                                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                            : 'bg-amber-50 text-amber-700 border-amber-200'
+                                        }`}
+                                    >
+                                        {date.toLocaleDateString('en-US', { weekday: 'short', month: 'numeric', day: 'numeric' })} — {openCount} open
+                                    </button>
+                                ))}
+                            </div>
+                        );
+                    })()}
 
                     {/* Main Grid Area */}
                     <div className="glass-panel rounded-[2rem] overflow-hidden flex-1 border border-white/40 shadow-xl shadow-indigo-500/5 relative">
@@ -704,13 +762,20 @@ const ScheduleView = () => {
                                     {/* Dates Header */}
                                     {weekDates.map((date, i) => {
                                         const isToday = date.toDateString() === new Date().toDateString();
+                                        const dateDayShifts = getShiftsForDate(date);
+                                        const dayOpenCount = dateDayShifts.filter(s => s.is_open).length;
+                                        const dayTotal = dateDayShifts.length;
+                                        const dayCoverageColor = dayTotal === 0 ? '' : dayOpenCount === 0 ? 'bg-emerald-500' : dayOpenCount <= 2 ? 'bg-amber-500' : 'bg-rose-500';
                                         return (
                                             <div key={i} className={`p-3 text-center transition-colors ${isToday ? 'bg-indigo-50/30' : ''}`}>
-                                                <div className="text-xs font-bold text-slate-400 uppercase mb-1 tracking-wider">{DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1]}</div>
+                                                <div className="flex items-center justify-center gap-1.5 mb-1">
+                                                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{DAYS[date.getDay() === 0 ? 6 : date.getDay() - 1]}</span>
+                                                    {dayTotal > 0 && <span className={`w-2 h-2 rounded-full ${dayCoverageColor}`} title={dayOpenCount === 0 ? 'Fully staffed' : `${dayOpenCount} open`} />}
+                                                </div>
                                                 <div className={`flex items-center justify-center mx-auto w-8 h-8 rounded-full text-lg font-bold font-display ${isToday ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/30' : 'text-slate-700'}`}>
                                                     {date.getDate()}
                                                 </div>
-                                                <CoverageBar date={date} shifts={getShiftsForDate(date)} requirements={coverageRequirements} />
+                                                <CoverageBar date={date} shifts={dateDayShifts} requirements={coverageRequirements} />
                                             </div>
                                         );
                                     })}
@@ -754,6 +819,12 @@ const ScheduleView = () => {
                                                                         <span className="text-xs font-bold text-slate-500 bg-slate-50 px-2 py-0.5 rounded-md border border-slate-100">
                                                                             {new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()}
                                                                         </span>
+                                                                        {(() => {
+                                                                            const hoursUntil = (new Date(shift.start_time).getTime() - Date.now()) / 3600000;
+                                                                            if (hoursUntil <= 24) return <span className="text-[9px] font-black px-1.5 py-0.5 bg-rose-100 text-rose-700 border border-rose-200 rounded uppercase">Urgent</span>;
+                                                                            if (hoursUntil <= 48) return <span className="text-[9px] font-black px-1.5 py-0.5 bg-amber-100 text-amber-700 border border-amber-200 rounded uppercase">Soon</span>;
+                                                                            return null;
+                                                                        })()}
                                                                     </div>
                                                                     <div className="text-xs font-bold text-slate-700">{shift.role_type}</div>
                                                                 </div>
@@ -897,13 +968,26 @@ const ScheduleView = () => {
                                             const dayShifts = getShiftsForDate(cell.date);
                                             const isToday = cell.date.toDateString() === new Date().toDateString();
 
+                                            const openCount = dayShifts.filter(s => s.is_open).length;
+                                            const totalCount = dayShifts.length;
+                                            const coverageColor = totalCount === 0 ? '' : openCount === 0 ? 'bg-emerald-500' : openCount <= 2 ? 'bg-amber-500' : 'bg-rose-500';
+                                            const coverageLabel = totalCount === 0 ? '' : openCount === 0 ? 'Fully staffed' : `${openCount} open shift${openCount > 1 ? 's' : ''}`;
+
                                             return (
                                                 <div
                                                     key={idx}
                                                     className={`bg-white p-2 min-h-[120px] hover:bg-slate-50 transition-colors cursor-pointer group relative ${!cell.isCurrentMonth ? 'bg-slate-50/50' : ''}`}
                                                     onClick={() => canManageSchedule && handleNewShift(cell.date)}
                                                 >
-                                                    <div className={`text-right mb-2`}>
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        {totalCount > 0 ? (
+                                                            <div className="flex items-center gap-1.5" title={coverageLabel}>
+                                                                <span className={`w-2 h-2 rounded-full ${coverageColor} shadow-sm`} />
+                                                                <span className={`text-[10px] font-bold uppercase tracking-wide ${openCount === 0 ? 'text-emerald-600' : openCount <= 2 ? 'text-amber-600' : 'text-rose-600'}`}>
+                                                                    {openCount === 0 ? 'Full' : `${openCount} open`}
+                                                                </span>
+                                                            </div>
+                                                        ) : <div />}
                                                         <span className={`text-xs font-bold inline-block w-7 h-7 leading-7 text-center rounded-lg ${isToday ? 'bg-indigo-600 text-white shadow-md' : (!cell.isCurrentMonth ? 'text-slate-300' : 'text-slate-700')}`}>
                                                             {cell.date.getDate()}
                                                         </span>
@@ -1044,6 +1128,13 @@ const ScheduleView = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Copilot Sidebar */}
+            {isCopilotOpen && canManageSchedule && (
+                <div className="hidden lg:block w-[360px] flex-shrink-0 animate-in slide-in-from-right duration-300">
+                    <CopilotPanel />
+                </div>
+            )}
         </div >
     );
 };

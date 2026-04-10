@@ -372,6 +372,68 @@ const handlers = {
       return `• ${name}: ${r.start_date} to ${r.end_date} (${r.type})`;
     }).join('\n')}`;
   },
+
+  // OPERATIONAL INTENTS
+  staffing_health(ctx: OpsPilotContext): string {
+    const now = ctx.now || new Date();
+    const activeEntries = ctx.timeEntries.filter(e => !e.clock_out || e.status === 'active');
+    const activeCount = new Set(activeEntries.map(e => e.user_id)).size;
+    const { start, end } = getTodayRange(now);
+    const todayShifts = shiftsInRange(ctx.shifts, start, end);
+    const staffedShifts = todayShifts.filter(s => s.user_id && !s.is_open);
+    const openShifts = todayShifts.filter(s => s.is_open);
+    const totalPets = ctx.clients.flatMap(c => c.pets || []).filter(p => p.status === 'active').length;
+
+    const status = openShifts.length >= 3 || activeCount < staffedShifts.length - 2
+      ? 'UNDERSTAFFED'
+      : openShifts.length === 0 && activeCount >= staffedShifts.length
+        ? 'FULLY STAFFED'
+        : 'TIGHT COVERAGE';
+
+    return `Facility Status: ${status}\n• ${activeCount} staff clocked in\n• ${staffedShifts.length} shifts scheduled today\n• ${openShifts.length} open shifts\n• ${totalPets} dogs in system\n• Ratio: ${activeCount > 0 ? (totalPets / activeCount).toFixed(1) : '—'} dogs per staff`;
+  },
+
+  who_late_or_missing(ctx: OpsPilotContext): string {
+    const now = ctx.now || new Date();
+    const { start, end } = getTodayRange(now);
+    const todayEntries = timeEntriesInRange(ctx.timeEntries, start, end);
+    const results: string[] = [];
+
+    const staffedToday = shiftsInRange(ctx.shifts, start, end).filter(s => s.user_id && !s.is_open && new Date(s.start_time) < now);
+    for (const shift of staffedToday) {
+      const name = ctx.staff.find(s => s.id === shift.user_id)?.full_name || 'Unknown';
+      const time = new Date(shift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+      const entry = todayEntries.find(e => e.user_id === shift.user_id);
+      const minsSinceStart = Math.floor((now.getTime() - new Date(shift.start_time).getTime()) / 60000);
+
+      if (!entry && minsSinceStart > 30) {
+        results.push(`• ${name} — MISSED (due at ${time}, ${minsSinceStart}min ago)`);
+      } else if (!entry && minsSinceStart > 5) {
+        results.push(`• ${name} — NO CLOCK-IN (due at ${time}, ${minsSinceStart}min ago)`);
+      } else if (entry) {
+        const lateMin = Math.floor((new Date(entry.clock_in).getTime() - new Date(shift.start_time).getTime()) / 60000);
+        if (lateMin > 5) results.push(`• ${name} — LATE by ${lateMin}min (shift at ${time})`);
+      }
+    }
+    if (results.length === 0) return 'All clear — no one is late or missing today.';
+    return `Late/Missing staff today:\n${results.join('\n')}`;
+  },
+
+  approaching_overtime(ctx: OpsPilotContext): string {
+    const range = getWeekRange(ctx.now || new Date());
+    const weekEntries = timeEntriesInRange(ctx.timeEntries, range.start, range.end);
+    const byUser: Record<string, number> = {};
+    weekEntries.forEach(e => {
+      const ms = TimeMath.calculateNetDurationMS(e.clock_in, e.clock_out || new Date(), e.total_break_minutes);
+      byUser[e.user_id] = (byUser[e.user_id] || 0) + TimeMath.msToDecimalHours(ms);
+    });
+    const atRisk = Object.entries(byUser)
+      .filter(([, h]) => h >= 35)
+      .map(([id, h]) => ({ name: ctx.staff.find(s => s.id === id)?.full_name || 'Unknown', hours: h }))
+      .sort((a, b) => b.hours - a.hours);
+    if (atRisk.length === 0) return 'No staff are approaching overtime this week.';
+    return `Overtime risk this week:\n${atRisk.map(o => `• ${o.name}: ${TimeMath.formatDecimalHours(o.hours)}${o.hours >= 40 ? ' ⚠️ OVERTIME' : ` (${TimeMath.formatDecimalHours(40 - o.hours)} remaining)`}`).join('\n')}`;
+  },
 };
 
 // ─── Intent Registry ──────────────────────────────
@@ -405,6 +467,11 @@ const INTENTS: Intent[] = [
   { id: 'pending_paystubs', category: 'financial', displayQuestion: 'How many pay stubs are pending?', keywords: ['pay stubs', 'pending', 'draft', 'paystubs'], synonyms: ['pending pay stubs', 'draft pay stubs', 'unapproved pay stubs', 'pay stub status'], requiredRole: 'manager', handler: handlers.pending_paystubs },
   { id: 'avg_hourly_rate', category: 'financial', displayQuestion: "What's the average hourly rate?", keywords: ['average', 'hourly', 'rate', 'pay'], synonyms: ['average pay rate', 'avg hourly', 'average rate', 'pay rate'], requiredRole: 'manager', handler: handlers.avg_hourly_rate },
   { id: 'time_off_requests', category: 'financial', displayQuestion: 'Any pending time-off requests?', keywords: ['time off', 'requests', 'pending', 'pto'], synonyms: ['time off requests', 'pending requests', 'pto requests', 'vacation requests'], requiredRole: 'manager', handler: handlers.time_off_requests },
+
+  // OPERATIONAL
+  { id: 'staffing_health', category: 'scheduling', displayQuestion: 'Are we properly staffed right now?', keywords: ['staffed', 'properly', 'enough', 'coverage', 'understaffed'], synonyms: ['are we properly staffed', 'are we staffed', 'staffing health', 'enough staff', 'do we have enough people', 'are we understaffed', 'facility status'], requiredRole: 'manager', handler: handlers.staffing_health },
+  { id: 'who_late_or_missing', category: 'attendance', displayQuestion: 'Who is late or missing today?', keywords: ['late', 'missing', 'no show'], synonyms: ['who is late or missing', 'whos late or missing', 'late or missing', 'attendance issues', 'who hasnt shown up'], requiredRole: 'manager', handler: handlers.who_late_or_missing },
+  { id: 'approaching_overtime', category: 'financial', displayQuestion: 'Who is approaching overtime this week?', keywords: ['approaching', 'overtime', 'close to overtime', 'hours risk'], synonyms: ['approaching overtime', 'close to overtime', 'who is approaching overtime', 'overtime risk', 'nearing overtime'], requiredRole: 'manager', handler: handlers.approaching_overtime },
 ];
 
 // ─── Intent Matching ──────────────────────────────
@@ -501,7 +568,14 @@ function buildKnowledgeResponse(query: string, knowledgeBase: KnowledgeEntry[]):
     .slice(0, 3)
     .map(r => r.line);
   if (relevant.length === 0) return null;
-  return `${entry.title}\n${relevant.map(l => `• ${l}`).join('\n')}`;
+
+  // Check if critical entry
+  const CRITICAL_KEYWORDS = ['emergency', 'critical', 'safety', 'incident', 'evacuation', 'bite', 'seizure', 'allergic'];
+  const entryStr = `${entry.title} ${entry.category} ${(entry.tags || []).join(' ')}`.toLowerCase();
+  const isCritical = CRITICAL_KEYWORDS.some(kw => entryStr.includes(kw)) || (entry.tags || []).some(t => t.toLowerCase() === 'critical');
+  const prefix = isCritical ? 'CRITICAL PROCEDURE: ' : '';
+
+  return `${prefix}${entry.title}\n${relevant.map(l => `• ${l}`).join('\n')}`;
 }
 
 // ─── Main API ─────────────────────────────────────
@@ -584,7 +658,9 @@ export function getQuestionCatalog(user: Profile): CatalogCategory[] {
 
 // Legacy export for backward compatibility
 export const OPS_PILOT_SUGGESTIONS = [
-  'Who is working today?',
-  'Who is clocked in right now?',
-  'How many dogs are here?',
+  'Are we properly staffed right now?',
+  'Who is late or missing today?',
+  'Any dogs with medical alerts?',
+  'What shifts are still open today?',
+  'Who is approaching overtime this week?',
 ];

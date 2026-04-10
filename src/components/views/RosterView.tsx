@@ -4,7 +4,7 @@ import { TimeMath } from '../../utils/timeMath';
 import { isManager } from '../../services/permissions';
 import TimesheetHeader from '../timesheet/TimesheetHeader';
 import SmartRosterTable from '../timesheet/SmartRosterTable';
-import { Mail, CalendarCheck, ArrowRightLeft, CheckCircle2, XCircle, Search, Clock, Users, Banknote, Dog } from 'lucide-react';
+import { Mail, CalendarCheck, ArrowRightLeft, CheckCircle2, XCircle, Search, Clock, Users, Banknote, Dog, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
 import SectionCard from '../SectionCard';
 import { usePageTitle } from '../../hooks/usePageTitle';
 import { useToast } from '../ui/Toast';
@@ -14,6 +14,7 @@ import PayrollView from './PayrollView';
 import OffboardingModal from '../staff/OffboardingModal';
 import ManualEntryModal from '../timesheet/ManualEntryModal';
 import AssignDogsModal from '../staff/AssignDogsModal';
+import { getOvertimeStatus } from '../../utils/overtime';
 
 const RosterView = () => {
     const { shifts, requests, swaps, currentUser, staff, timeEntries, organization, updateRequestStatus, updateSwapStatus, updateShift } = useOpsCenter();
@@ -299,6 +300,17 @@ const RosterView = () => {
                                 return acc + TimeMath.msToDecimalHours(netMS);
                             }, 0);
 
+                            // Schedule vs Actual
+                            const scheduledHours = shifts
+                                .filter(s => s.user_id === user.id)
+                                .reduce((acc, s) => acc + (new Date(s.end_time).getTime() - new Date(s.start_time).getTime()) / 3600000, 0);
+                            const delta = totalHours - scheduledHours;
+
+                            // Overtime risk (using canonical utility)
+                            const otStatus = getOvertimeStatus(user.id, timeEntries);
+                            const otLabel = otStatus.isOvertime ? 'Overtime' : otStatus.isApproaching ? 'Approaching OT' : null;
+                            const otColor = otStatus.isOvertime ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-amber-50 text-amber-700 border-amber-200';
+
                             // Check if currently clocked in (active entry with no clock out)
                             const isClockedIn = userEntries.some(te => !te.clock_out && te.status === 'active');
                             const isSelected = selectedStaff.includes(user.id);
@@ -337,10 +349,17 @@ const RosterView = () => {
                                         <div className="flex-1 min-w-0 pr-8">
                                             <h3 className="font-bold text-slate-900 truncate">{user.full_name}</h3>
                                             <p className="text-xs font-medium text-slate-400 uppercase">{user.role}</p>
-                                            <div className={`inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-md text-xs font-bold uppercase ${isClockedIn ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'
-                                                }`}>
-                                                <Clock size={10} />
-                                                {isClockedIn ? 'Clocked In' : 'Off Duty'}
+                                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                                <div className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold uppercase ${isClockedIn ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'}`}>
+                                                    <Clock size={10} />
+                                                    {isClockedIn ? 'Clocked In' : 'Off Duty'}
+                                                </div>
+                                                {otLabel && (
+                                                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase border ${otColor}`}>
+                                                        <AlertTriangle size={10} />
+                                                        {otLabel}
+                                                    </span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -349,6 +368,12 @@ const RosterView = () => {
                                         <div>
                                             <div className="text-lg font-black text-slate-900">{TimeMath.formatDecimalHours(totalHours)}</div>
                                             <div className="text-xs font-bold text-slate-400 uppercase">Total Worked</div>
+                                            {scheduledHours > 0 && (
+                                                <div className={`text-[10px] font-bold mt-0.5 flex items-center gap-0.5 ${delta >= 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                                    {delta >= 0 ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                                                    {delta >= 0 ? '+' : ''}{delta.toFixed(1)}h vs scheduled
+                                                </div>
+                                            )}
                                         </div>
                                         <button
                                             onClick={(e) => {
@@ -381,8 +406,8 @@ const RosterView = () => {
                     {filteredStaff.length === 0 && (
                         <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                             <Search size={48} className="mb-4 opacity-20" />
-                            <p className="font-bold">No staff found</p>
-                            <p className="text-xs">Try searching for a different name</p>
+                            <p className="text-sm font-bold text-slate-400">No staff found</p>
+                            <p className="text-xs text-slate-300">Try searching for a different name</p>
                         </div>
                     )}
                 </div>
@@ -492,8 +517,8 @@ const RosterView = () => {
                             {filteredStaff.length === 0 && (
                                 <div className="flex flex-col items-center justify-center py-12 text-slate-400">
                                     <Search size={48} className="mb-4 opacity-20" />
-                                    <p className="font-bold">No staff found</p>
-                                    <p className="text-xs">Try searching for a different name</p>
+                                    <p className="text-sm font-bold text-slate-400">No staff found</p>
+                                    <p className="text-xs text-slate-300">Try searching for a different name</p>
                                 </div>
                             )}
                         </div>

@@ -316,7 +316,7 @@ const SettingsView = () => {
     const isAdmin = isManager(currentUser);
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-700">
+        <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Settings</h1>
 
             {/* Invite Codes Section - Admin Only */}

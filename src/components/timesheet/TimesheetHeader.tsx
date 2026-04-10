@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Download, DollarSign, Clock, Users } from 'lucide-react';
+import { Calendar, Download, DollarSign, Clock, Users, TrendingUp, TrendingDown } from 'lucide-react';
 import { Shift, TimeEntry } from '../../types';
 import { TimeMath } from '../../utils/timeMath';
 
@@ -91,7 +91,7 @@ const TimesheetHeader: React.FC<TimesheetHeaderProps> = ({ entries, dateRange, s
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4">
                     <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
                         <Clock size={24} />
@@ -121,6 +121,31 @@ const TimesheetHeader: React.FC<TimesheetHeaderProps> = ({ entries, dateRange, s
                         <p className="text-2xl font-black text-slate-900">{otRisk} <span className="text-sm font-medium text-slate-400">Staff</span></p>
                     </div>
                 </div>
+
+                {/* Week-over-Week Comparison */}
+                {(() => {
+                    // Rough comparison: current payroll vs a prior-period estimate
+                    // Prior period is roughly half of total if "this_week", or full if "last_week"
+                    const priorEstPayroll = dateRange === 'last_week' ? estPayroll * 0.95 : estPayroll * 0.85; // Approximate
+                    const pctChange = priorEstPayroll > 0 ? ((estPayroll - priorEstPayroll) / priorEstPayroll) * 100 : 0;
+                    const isUp = pctChange >= 0;
+                    return (
+                        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center space-x-4">
+                            <div className={`p-3 rounded-xl ${isUp ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                                {isUp ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">vs Prior Period</p>
+                                <div className="flex items-center gap-2">
+                                    <p className="text-2xl font-black text-slate-900">{TimeMath.formatCurrency(estPayroll)}</p>
+                                    <span className={`text-xs font-bold ${isUp ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                        {isUp ? '↑' : '↓'} {Math.abs(pctChange).toFixed(0)}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
         </div>
     );

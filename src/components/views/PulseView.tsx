@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, ArrowUpRight, Clock, Sparkles, Send, BookOpen, PauseCircle, PlayCircle, Users, CheckCircle, Shield, AlertTriangle, Dog } from 'lucide-react';
+import { Activity, ArrowUpRight, Clock, Sparkles, Send, BookOpen, PauseCircle, PlayCircle, Users, CheckCircle, Shield, AlertTriangle, Dog, Bell } from 'lucide-react';
 import { ViewType } from '../../types';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
@@ -10,6 +10,7 @@ import ShiftCompletionWidget from '../dashboard/ShiftCompletionWidget';
 import LiveRosterDetailModal from '../dashboard/LiveRosterDetailModal';
 import ConfirmDialog from '../ui/ConfirmDialog';
 import { buildOpsPilotReply, OPS_PILOT_SUGGESTIONS } from '../../services/opsPilot';
+import { buildAlerts, OpsAlert } from '../../services/alerts';
 
 interface PilotMessage {
     id: string;
@@ -178,31 +179,43 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
             </div>
 
             {/* Staffing Health Bar */}
-            {isManager(currentUser) && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    {/* Active Staff Count */}
-                    <div className="glass-panel p-4 rounded-2xl flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
-                            <Users size={20} className="text-emerald-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Staff On Duty</p>
-                            <p className="text-2xl font-black text-slate-900">{activeStaff.length}</p>
-                        </div>
-                    </div>
+            {isManager(currentUser) && (() => {
+                const todayShifts = shifts.filter(s =>
+                    new Date(s.start_time).toDateString() === currentTime.toDateString() && !s.is_open && s.user_id
+                );
+                const openToday = shifts.filter(s =>
+                    new Date(s.start_time).toDateString() === currentTime.toDateString() && s.is_open
+                );
+                const activePets = clients.flatMap(c => c.pets || []).filter(p => p.status === 'active').length;
+                const totalScheduled = todayShifts.length + openToday.length;
+                const isFullyStaffed = openToday.length === 0 && activeStaff.length >= todayShifts.length;
+                const isUnderstaffed = openToday.length >= 3 || activeStaff.length < Math.max(1, todayShifts.length - 2);
+                const facilityStatus = isUnderstaffed ? 'Understaffed' : isFullyStaffed ? 'Fully Staffed' : 'Tight Coverage';
+                const statusColor = isUnderstaffed ? 'rose' : isFullyStaffed ? 'emerald' : 'amber';
 
-                    {/* Today's Scheduled */}
-                    {(() => {
-                        const todayShifts = shifts.filter(s =>
-                            new Date(s.start_time).toDateString() === currentTime.toDateString() && !s.is_open && s.user_id
-                        );
-                        const openToday = shifts.filter(s =>
-                            new Date(s.start_time).toDateString() === currentTime.toDateString() && s.is_open
-                        );
-                        return (
+                const opsAlerts = buildAlerts({ shifts, timeEntries, staff, clients, ratios });
+                const topAlerts = opsAlerts.slice(0, 5);
+
+                return (
+                    <>
+                        {/* Facility Status + Metrics */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            {/* Facility Status */}
+                            <div className={`glass-panel p-4 rounded-2xl flex items-center gap-4 border-l-4 border-${statusColor}-500`}>
+                                <div className={`w-10 h-10 rounded-xl bg-${statusColor}-100 flex items-center justify-center`}>
+                                    <Shield size={20} className={`text-${statusColor}-600`} />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Facility Status</p>
+                                    <p className={`text-xl font-black text-${statusColor}-700`}>{facilityStatus}</p>
+                                    <p className="text-xs text-slate-500 font-medium">{activeStaff.length} on duty / {totalScheduled} scheduled</p>
+                                </div>
+                            </div>
+
+                            {/* Today's Shifts */}
                             <div className="glass-panel p-4 rounded-2xl flex items-center gap-4">
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${openToday.length > 0 ? 'bg-amber-100' : 'bg-indigo-100'}`}>
-                                    <Shield size={20} className={openToday.length > 0 ? 'text-amber-600' : 'text-indigo-600'} />
+                                    <Users size={20} className={openToday.length > 0 ? 'text-amber-600' : 'text-indigo-600'} />
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Today's Shifts</p>
@@ -216,32 +229,57 @@ const PulseView = ({ setActiveView }: { setActiveView: (v: ViewType) => void }) 
                                     </div>
                                 </div>
                             </div>
-                        );
-                    })()}
 
-                    {/* Staffing Ratios / Dog Load */}
-                    <div className="glass-panel p-4 rounded-2xl flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                            <Dog size={20} className="text-purple-600" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                                {ratios.length > 0 ? 'Coverage Ratio' : 'Active Clients'}
-                            </p>
-                            {ratios.length > 0 ? (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-2xl font-black text-slate-900">
-                                        {ratios[0].staff_count}:{ratios[0].dog_count}
-                                    </span>
-                                    <span className="text-xs text-slate-400">{ratios[0].zone_name}</span>
+                            {/* Dog Load vs Staff */}
+                            <div className="glass-panel p-4 rounded-2xl flex items-center gap-4">
+                                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+                                    <Dog size={20} className="text-purple-600" />
                                 </div>
-                            ) : (
-                                <p className="text-2xl font-black text-slate-900">{clients.filter(c => c.status === 'active').length}</p>
-                            )}
+                                <div>
+                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dog Load</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-2xl font-black text-slate-900">{activePets}</span>
+                                        <span className="text-xs text-slate-400">dogs / {activeStaff.length} staff</span>
+                                    </div>
+                                    {activeStaff.length > 0 && (
+                                        <p className="text-xs text-slate-500 font-medium">{(activePets / activeStaff.length).toFixed(1)} dogs per staff</p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            )}
+
+                        {/* Alerts Section */}
+                        {topAlerts.length > 0 && (
+                            <SectionCard className="!p-5">
+                                <div className="flex items-center justify-between mb-4">
+                                    <div className="flex items-center gap-2">
+                                        <Bell size={16} className="text-slate-400" />
+                                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Alerts</h3>
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-500">{opsAlerts.length} total</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {topAlerts.map(alert => {
+                                        const borderColor = alert.severity === 'critical' ? 'border-l-rose-500' : alert.severity === 'warning' ? 'border-l-amber-500' : 'border-l-blue-500';
+                                        const badgeColor = alert.severity === 'critical' ? 'bg-rose-100 text-rose-700' : alert.severity === 'warning' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700';
+                                        return (
+                                            <div key={alert.id} className={`p-3 bg-white border border-slate-100 rounded-xl border-l-4 ${borderColor} flex items-start gap-3`}>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2 mb-0.5">
+                                                        <h4 className="text-sm font-bold text-slate-900 truncate">{alert.title}</h4>
+                                                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${badgeColor}`}>{alert.severity}</span>
+                                                    </div>
+                                                    <p className="text-xs text-slate-500 font-medium">{alert.message}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </SectionCard>
+                        )}
+                    </>
+                );
+            })()}
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 

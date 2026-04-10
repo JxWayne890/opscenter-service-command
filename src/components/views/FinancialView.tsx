@@ -80,7 +80,7 @@ const FinancialView: React.FC = () => {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-display font-bold text-slate-900 tracking-tight">Financial Clarity</h1>
-                    <p className="text-slate-500 font-medium">Operational financial visibility & decision support</p>
+                    <p className="text-sm text-slate-500 font-medium">Operational financial visibility & decision support</p>
                 </div>
 
                 <div className="flex items-center bg-white rounded-xl shadow-sm border border-slate-200 p-1">

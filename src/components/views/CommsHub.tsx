@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { MessageSquare, Users, User, ArrowLeft, Send, Search, MoreVertical, PlusCircle, Trash2, CheckSquare, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { MessageSquare, Users, User, ArrowLeft, Send, Search, MoreVertical, PlusCircle, Trash2, CheckSquare, X, Image as ImageIcon, Loader2, AlertTriangle, Clock as ClockIcon } from 'lucide-react';
 import SectionCard from '../SectionCard';
 import { useOpsCenter } from '../../services/store';
 import { useToast } from '../ui/Toast';
@@ -17,10 +17,11 @@ const CommsHub = () => {
     usePageTitle('Communications');
 
     // State
-    const [activeTab, setActiveTab] = useState<'team' | 'clients'>('team');
+    const [activeTab, setActiveTab] = useState<'all' | 'team' | 'clients'>('all');
     const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
 
     const [newMessageText, setNewMessageText] = useState('');
+    const [isUrgent, setIsUrgent] = useState(false);
     const [mobileViewMode, setMobileViewMode] = useState<'list' | 'thread'>('list'); // For mobile responsiveness
 
     // Bulk Selection State
@@ -125,9 +126,9 @@ const CommsHub = () => {
     };
 
     // Derived Data
-    const activeThreadUser = activeTab === 'team'
-        ? staff.find(u => u.id === selectedThreadId)
-        : clients.find(c => c.id === selectedThreadId);
+    const activeThreadUser = activeTab === 'clients'
+        ? clients.find(c => c.id === selectedThreadId)
+        : staff.find(u => u.id === selectedThreadId) || clients.find(c => c.id === selectedThreadId);
 
     const handleThreadSelect = (id: string) => {
         setSelectedThreadId(id);
@@ -192,13 +193,14 @@ const CommsHub = () => {
 
             // 2. Send Text Message (if any)
             if (newMessageText.trim()) {
+                const finalContent = isUrgent ? `[URGENT] ${newMessageText.trim()}` : newMessageText.trim();
                 const msg: Message = {
                     id: crypto.randomUUID(),
                     organization_id: currentUser.organization_id,
                     sender_id: currentUser.id,
                     recipient_id: selectedThreadId,
                     group_id: selectedThreadId,
-                    content: newMessageText.trim(),
+                    content: finalContent,
                     created_at: new Date().toISOString()
                 };
                 await sendMessage(msg);
@@ -207,6 +209,7 @@ const CommsHub = () => {
             // Reset
             setNewMessageText('');
             setPendingFiles([]);
+            setIsUrgent(false);
         } catch (error) {
             ErrorTracking.captureException(error instanceof Error ? error : new Error(String(error)));
         } finally {
@@ -252,7 +255,7 @@ const CommsHub = () => {
     };
 
     return (
-        <div className="h-[calc(100vh-140px)] animate-in fade-in duration-500 flex flex-col lg:flex-row gap-6">
+        <div className="h-[calc(100vh-140px)] animate-in fade-in slide-in-from-bottom-4 duration-700 flex flex-col lg:flex-row gap-6">
             <ConfirmDialog
                 isOpen={showDeleteConfirm}
                 onClose={() => setShowDeleteConfirm(false)}
@@ -314,6 +317,13 @@ const CommsHub = () => {
                     {/* Segmented Control */}
                     <div className="bg-slate-100 p-1 rounded-xl flex font-bold text-xs">
                         <button
+                            onClick={() => setActiveTab('all')}
+                            className={`flex-1 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all ${activeTab === 'all' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                            <MessageSquare size={14} />
+                            <span>All</span>
+                        </button>
+                        <button
                             onClick={() => setActiveTab('team')}
                             className={`flex-1 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all ${activeTab === 'team' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
                         >
@@ -324,7 +334,7 @@ const CommsHub = () => {
                             onClick={() => setActiveTab('clients')}
                             className={`flex-1 py-2.5 rounded-lg flex items-center justify-center space-x-2 transition-all ${activeTab === 'clients' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
                         >
-                            <MessageSquare size={14} />
+                            <User size={14} />
                             <span>Clients</span>
                         </button>
                     </div>
@@ -342,8 +352,8 @@ const CommsHub = () => {
 
                 {/* Conversation List */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1">
-                    {activeTab === 'team' ? (
-                        // TEAM LIST - Only show users with message history
+                    {activeTab !== 'clients' ? (
+                        // TEAM LIST (or All) - Only show users with message history
                         usersWithConversations.length === 0 ? (
                             <div className="text-center py-12 text-slate-400">
                                 <MessageSquare size={32} className="mx-auto mb-3 opacity-30" />
@@ -357,12 +367,14 @@ const CommsHub = () => {
                                 const lastMsg = getLastMessageWithUser(user.id);
                                 const previewText = lastMsg ? getPreviewText(lastMsg.content) : 'No messages';
                                 const timeText = lastMsg ? formatMessageTime(lastMsg.created_at) : '';
+                                const isUrgentMsg = lastMsg?.content?.startsWith('[URGENT]') || false;
+                                const needsResponse = lastMsg && lastMsg.sender_id === user.id && !lastMsg.read_at && (Date.now() - new Date(lastMsg.created_at).getTime()) > 4 * 3600000;
 
                                 return (
                                     <button
                                         key={user.id}
                                         onClick={() => isSelectionMode ? toggleSelection(user.id) : handleThreadSelect(user.id)}
-                                        className={`w-full flex items-center space-x-3 p-3 rounded-2xl transition-all text-left group ${isSelected && !isSelectionMode
+                                        className={`w-full flex items-center space-x-3 p-3 rounded-2xl transition-all text-left group ${isUrgentMsg ? 'border-l-4 border-l-rose-500 ' : ''}${isSelected && !isSelectionMode
                                             ? 'bg-indigo-50 border border-indigo-100 shadow-sm'
                                             : 'hover:bg-slate-50 border border-transparent'
                                             } ${isChecked ? 'bg-slate-50 border-slate-200' : ''}`}
@@ -378,9 +390,13 @@ const CommsHub = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex justify-between items-center mb-0.5">
-                                                <h3 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>
-                                                    {user.full_name}
-                                                </h3>
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <h3 className={`text-sm font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-900'}`}>
+                                                        {user.full_name}
+                                                    </h3>
+                                                    {isUrgentMsg && <span className="text-[10px] font-bold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded border border-rose-200 uppercase flex-shrink-0">Urgent</span>}
+                                                    {needsResponse && <span className="text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-200 uppercase flex-shrink-0">Needs Response</span>}
+                                                </div>
                                                 <span className={`text-xs font-bold ${isSelected ? 'text-indigo-400' : 'text-slate-400'}`}>{timeText}</span>
                                             </div>
                                             <p className={`text-xs truncate font-medium ${isSelected ? 'text-indigo-600' : 'text-slate-500 group-hover:text-slate-600'}`}>
@@ -462,7 +478,7 @@ const CommsHub = () => {
                                 </button>
                                 <div className="flex items-center space-x-3">
                                     <img
-                                        src={activeTab === 'team'
+                                        src={activeTab !== 'clients'
                                             ? (activeThreadUser as Profile)?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent((activeThreadUser as Profile)?.full_name || '')}&background=random`
                                             : `https://ui-avatars.com/api/?name=${encodeURIComponent((activeThreadUser as any)?.full_name || '')}&background=random`}
                                         className="w-10 h-10 rounded-full object-cover shadow-sm"
@@ -470,7 +486,7 @@ const CommsHub = () => {
                                     />
                                     <div>
                                         <h3 className="font-bold text-slate-900 text-sm">
-                                            {activeTab === 'team' ? (activeThreadUser as any)?.full_name : (activeThreadUser as any)?.full_name}
+                                            {(activeThreadUser as any)?.full_name}
                                         </h3>
                                         <div className="flex items-center space-x-1.5">
                                             <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
@@ -532,7 +548,7 @@ const CommsHub = () => {
                                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'} group`}>
                                         {!isMe && (
                                             <img
-                                                src={activeTab === 'team'
+                                                src={activeTab !== 'clients'
                                                     ? (activeThreadUser as Profile)?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent((activeThreadUser as Profile)?.full_name || '')}&background=random`
                                                     : `https://ui-avatars.com/api/?name=${encodeURIComponent((activeThreadUser as any)?.full_name || '')}&background=random`}
                                                 className="w-8 h-8 rounded-full rounded-tr-none mr-3 self-end mb-1 shadow-sm"
@@ -573,14 +589,24 @@ const CommsHub = () => {
                                                             onClick={() => setLightboxImage(msg.content)}
                                                         />
                                                     </div>
-                                                ) : (
-                                                    <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm relative transition-shadow ${isMe
-                                                        ? 'bg-indigo-600 text-white rounded-br-none'
-                                                        : 'bg-white text-slate-700 rounded-bl-none border border-slate-100'
-                                                        }`}>
-                                                        <p>{msg.content}</p>
-                                                    </div>
-                                                )}
+                                                ) : (() => {
+                                                    const isMsgUrgent = msg.content.startsWith('[URGENT]');
+                                                    const displayContent = isMsgUrgent ? msg.content.replace('[URGENT] ', '') : msg.content;
+                                                    return (
+                                                        <div className={`p-4 rounded-2xl text-sm leading-relaxed shadow-sm relative transition-shadow ${isMsgUrgent ? 'border-l-4 border-l-rose-500 ' : ''}${isMe
+                                                            ? 'bg-indigo-600 text-white rounded-br-none'
+                                                            : 'bg-white text-slate-700 rounded-bl-none border border-slate-100'
+                                                            }`}>
+                                                            {isMsgUrgent && (
+                                                                <div className="flex items-center gap-1 mb-1">
+                                                                    <AlertTriangle size={12} className={isMe ? 'text-rose-200' : 'text-rose-500'} />
+                                                                    <span className={`text-[10px] font-bold uppercase ${isMe ? 'text-rose-200' : 'text-rose-600'}`}>Urgent</span>
+                                                                </div>
+                                                            )}
+                                                            <p>{displayContent}</p>
+                                                        </div>
+                                                    );
+                                                })()}
 
                                                 {/* Delete Button - Visible on Hover */}
                                                 <button
@@ -641,6 +667,14 @@ const CommsHub = () => {
                                     className="p-2 text-slate-400 hover:text-indigo-500 hover:bg-white rounded-xl transition-all"
                                 >
                                     <ImageIcon size={20} />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsUrgent(!isUrgent)}
+                                    className={`p-2 rounded-xl transition-all ${isUrgent ? 'bg-rose-100 text-rose-600' : 'text-slate-400 hover:text-rose-500 hover:bg-white'}`}
+                                    title="Mark as urgent"
+                                >
+                                    <AlertTriangle size={18} />
                                 </button>
                                 <input
                                     type="text"

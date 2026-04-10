@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 
-interface Option {
+export interface Option {
     value: string;
     label: string;
+    description?: string;
     icon?: React.ReactNode;
 }
 
@@ -107,9 +108,14 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                             {icon}
                         </span>
                     )}
-                    <span className={`text-sm font-semibold ${selectedOption ? 'text-slate-900' : 'text-slate-400'}`}>
-                        {selectedOption?.label || placeholder}
-                    </span>
+                    <div>
+                        <span className={`text-sm font-semibold ${selectedOption ? 'text-slate-900' : 'text-slate-400'}`}>
+                            {selectedOption?.label || placeholder}
+                        </span>
+                        {selectedOption?.description && (
+                            <span className="text-slate-400 text-xs ml-2">• {selectedOption.description}</span>
+                        )}
+                    </div>
                 </div>
                 <ChevronDown
                     size={18}
@@ -135,7 +141,12 @@ const CustomSelect: React.FC<CustomSelectProps> = ({
                             >
                                 <div className="flex items-center gap-3">
                                     {option.icon && <span>{option.icon}</span>}
-                                    <span className="text-sm font-semibold">{option.label}</span>
+                                    <div>
+                                        <span className="text-sm font-semibold">{option.label}</span>
+                                        {option.description && (
+                                            <p className="text-xs text-slate-400">{option.description}</p>
+                                        )}
+                                    </div>
                                 </div>
                                 {value === option.value && (
                                     <Check size={16} className="text-indigo-600" />

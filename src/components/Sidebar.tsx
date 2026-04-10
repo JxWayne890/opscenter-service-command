@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useOpsCenter } from '../services/store';
 import { isManager } from '../services/permissions';
+import { buildAlerts } from '../services/alerts';
 import { Home, Users, BookOpen, Send, Settings, LogOut, Zap, Calendar, Clock, Menu, X, Sparkles, ChevronRight, Dog, TrendingUp, BarChart3, ClipboardCheck } from 'lucide-react';
 import { ViewType } from '../types';
 import OpsPilotModal from './OpsPilotModal';
@@ -31,8 +32,14 @@ const SidebarIcon = ({ icon: Icon, label, active, onClick }: { icon: any, label:
 );
 
 const Sidebar = ({ activeView, setActiveView }: { activeView: ViewType, setActiveView: (v: ViewType) => void }) => {
-    const { logout, currentUser } = useOpsCenter();
+    const { logout, currentUser, shifts, timeEntries, staff, clients, ratios } = useOpsCenter();
     const canManage = isManager(currentUser);
+
+    const alertCount = useMemo(() => {
+        if (!canManage) return 0;
+        const alerts = buildAlerts({ shifts, timeEntries, staff, clients, ratios });
+        return alerts.filter(a => a.severity === 'critical' || a.severity === 'warning').length;
+    }, [shifts, timeEntries, staff, clients, ratios, canManage]);
 
     return (
         <aside role="navigation" aria-label="Main navigation" className="hidden lg:flex flex-col glass-panel w-24 rounded-[2.5rem] items-center py-8 space-y-8 sticky top-6 h-[calc(100vh-3rem)] z-40 transition-all hover:w-24">
@@ -47,7 +54,14 @@ const Sidebar = ({ activeView, setActiveView }: { activeView: ViewType, setActiv
             <div className="flex-1 w-full flex flex-col items-center space-y-4 px-4 overflow-y-auto scrollbar-hide">
                 <div className="w-full h-px bg-slate-200/50 mb-2" />
 
-                <SidebarIcon label="Pulse Dashboard" icon={Home} active={activeView === 'pulse'} onClick={() => setActiveView('pulse')} />
+                <div className="relative">
+                    <SidebarIcon label="Pulse Dashboard" icon={Home} active={activeView === 'pulse'} onClick={() => setActiveView('pulse')} />
+                    {alertCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-lg shadow-rose-500/30 ring-2 ring-white z-10">
+                            {alertCount > 9 ? '9+' : alertCount}
+                        </span>
+                    )}
+                </div>
                 <SidebarIcon label="Schedule & Shifts" icon={Calendar} active={activeView === 'schedule'} onClick={() => setActiveView('schedule')} />
                 <SidebarIcon label="Time Clock" icon={Clock} active={activeView === 'timeclock'} onClick={() => setActiveView('timeclock')} />
 
